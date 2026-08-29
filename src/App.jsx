@@ -39,6 +39,33 @@ const ACCENT = "#E8532A";
 const INK = "#14181F";
 const MUTED = "#8A8F98";
 
+function GoogleIcon({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
+function AppleIcon({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 384 512" fill="currentColor" aria-hidden="true">
+      <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
+    </svg>
+  );
+}
+
+function FacebookIcon({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="#1877F2" aria-hidden="true">
+      <path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.88v2.26h3.32l-.53 3.49h-2.79V24C19.61 23.1 24 18.1 24 12.07z" />
+    </svg>
+  );
+}
+
 const SUPABASE_URL = "https://krtixudkoojbhypypjqv.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtydGl4dWRrb29qYmh5cHlwanF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4NzY4NDUsImV4cCI6MjEwMzQ1Mjg0NX0.3-Bx-JlBjuYDduSyBoXtUvVTfJEyGU1a4dRlOretEWA";
@@ -99,6 +126,7 @@ export default function SayAndItBecomes() {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
+  const [signupAgreed, setSignupAgreed] = useState(false);
   const [signupError, setSignupError] = useState("");
   const [signinEmail, setSigninEmail] = useState("");
   const [signinPassword, setSigninPassword] = useState("");
@@ -459,6 +487,10 @@ export default function SayAndItBecomes() {
       setSignupError("Passwords don't match.");
       return;
     }
+    if (!signupAgreed) {
+      setSignupError("Please agree to the Terms & Conditions to continue.");
+      return;
+    }
     setAuthLoading(true);
     try {
       const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
@@ -490,6 +522,13 @@ export default function SayAndItBecomes() {
       setSignupError("Something went wrong creating your account.");
     }
     setAuthLoading(false);
+  }
+
+  function signUpWithProvider(provider) {
+    // Supabase OAuth. Each provider must be enabled in the Supabase dashboard
+    // (Authentication → Providers) for this to complete instead of erroring.
+    const redirectTo = encodeURIComponent(window.location.origin + window.location.pathname);
+    window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=${provider}&redirect_to=${redirectTo}`;
   }
 
   async function signIn() {
@@ -757,6 +796,7 @@ export default function SayAndItBecomes() {
   }
   function goToSignUp() {
     setSignupError("");
+    setSignupAgreed(false);
     setCameFrom("landing");
     stopLessonAudio();
     setStep("signup");
@@ -1216,7 +1256,19 @@ export default function SayAndItBecomes() {
             Create your account
           </h1>
           <p className="text-sm mb-6" style={{ color: MUTED }}>
-            Just needs an email and password — you'll fill in the rest next.
+            Already have an account?{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setSignupError("");
+                setSigninError("");
+                setStep("signin");
+              }}
+              className="underline font-semibold"
+              style={{ color: ACCENT }}
+            >
+              Log in
+            </button>
           </p>
           <div className="flex flex-col gap-3">
             <div>
@@ -1261,6 +1313,26 @@ export default function SayAndItBecomes() {
                 style={{ borderColor: "#EAEAEA", color: INK }}
               />
             </div>
+            <label className="flex items-start gap-2.5 mt-1 text-sm" style={{ color: MUTED }}>
+              <input
+                type="checkbox"
+                checked={signupAgreed}
+                onChange={(e) => setSignupAgreed(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0"
+                style={{ accentColor: ACCENT }}
+              />
+              <span>
+                I agree to Say &amp; it Becomes&apos;s{" "}
+                <a href="#terms" className="underline font-semibold" style={{ color: ACCENT }}>
+                  Terms &amp; Conditions
+                </a>{" "}
+                and{" "}
+                <a href="#privacy" className="underline font-semibold" style={{ color: ACCENT }}>
+                  acknowledge the Privacy Policy
+                </a>
+                .
+              </span>
+            </label>
             {signupError && (
               <p className="text-sm" style={{ color: "#D64545" }}>
                 {signupError}
@@ -1275,6 +1347,42 @@ export default function SayAndItBecomes() {
               {authLoading ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
               {authLoading ? "Creating account..." : "Create Account"}
             </button>
+            <div className="flex items-center gap-3 my-1">
+              <div className="flex-1 h-px" style={{ backgroundColor: "#EAEAEA" }} />
+              <span className="text-xs" style={{ color: MUTED }}>
+                or continue with
+              </span>
+              <div className="flex-1 h-px" style={{ backgroundColor: "#EAEAEA" }} />
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => signUpWithProvider("google")}
+                className="flex-1 rounded-2xl py-3.5 flex items-center justify-center border-2"
+                style={{ borderColor: "#EAEAEA" }}
+                aria-label="Continue with Google"
+              >
+                <GoogleIcon size={22} />
+              </button>
+              <button
+                type="button"
+                onClick={() => signUpWithProvider("apple")}
+                className="flex-1 rounded-2xl py-3.5 flex items-center justify-center border-2"
+                style={{ borderColor: "#EAEAEA", color: INK }}
+                aria-label="Continue with Apple"
+              >
+                <AppleIcon size={22} />
+              </button>
+              <button
+                type="button"
+                onClick={() => signUpWithProvider("facebook")}
+                className="flex-1 rounded-2xl py-3.5 flex items-center justify-center border-2"
+                style={{ borderColor: "#EAEAEA" }}
+                aria-label="Continue with Facebook"
+              >
+                <FacebookIcon size={22} />
+              </button>
+            </div>
           </div>
         </div>
       )}
