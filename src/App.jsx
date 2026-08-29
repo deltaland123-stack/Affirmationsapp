@@ -1384,6 +1384,23 @@ export default function SayAndItBecomes() {
               </button>
             </div>
           </div>
+
+          <footer className="w-full mt-12 rounded-2xl px-6 py-8" style={{ backgroundColor: "#4B4A47" }}>
+            <p className="text-center text-sm mb-6" style={{ color: "#EDEBE6" }}>
+              © {new Date().getFullYear()} Say&amp;itbecomes Inc.
+            </p>
+            <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
+              <a href="#terms" className="hover:underline" style={{ color: "#CFCCC4" }}>
+                Terms &amp; conditions
+              </a>
+              <a href="#privacy" className="hover:underline" style={{ color: "#CFCCC4" }}>
+                Privacy policy
+              </a>
+              <a href="#cookies" className="hover:underline" style={{ color: "#CFCCC4" }}>
+                Cookie policy
+              </a>
+            </div>
+          </footer>
         </div>
       )}
 
