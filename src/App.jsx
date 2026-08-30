@@ -33,6 +33,8 @@ import {
   Shuffle,
   FileText,
   FileAudio,
+  Share2,
+  CreditCard,
 } from "lucide-react";
 
 const ACCENT = "#E8532A";
@@ -101,6 +103,13 @@ export default function SayAndItBecomes() {
   const [shuffleOn, setShuffleOn] = useState(false);
   const [repeatCount, setRepeatCount] = useState(1);
   const [downloadNotice, setDownloadNotice] = useState("");
+  const [isPaidMember, setIsPaidMember] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallPlan, setPaywallPlan] = useState("trial"); // trial | annual
+  const [payCard, setPayCard] = useState("");
+  const [payExp, setPayExp] = useState("");
+  const [payCvc, setPayCvc] = useState("");
 
   // Setup / profile
   const [voicePref, setVoicePref] = useState("coach");
@@ -123,6 +132,7 @@ export default function SayAndItBecomes() {
   // Auth
   const [session, setSession] = useState(null); // { accessToken, refreshToken, userId, email }
   const [authLoading, setAuthLoading] = useState(false);
+  const [signupName, setSignupName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
@@ -475,7 +485,7 @@ export default function SayAndItBecomes() {
   // ---- Auth actions ----
   async function signUp() {
     setSignupError("");
-    if (!signupEmail.trim() || !signupPassword || !signupConfirmPassword) {
+    if (!signupName.trim() || !signupEmail.trim() || !signupPassword || !signupConfirmPassword) {
       setSignupError("Fill in all fields.");
       return;
     }
@@ -496,7 +506,11 @@ export default function SayAndItBecomes() {
       const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
         method: "POST",
         headers: sbAuthHeaders(),
-        body: JSON.stringify({ email: signupEmail.trim(), password: signupPassword }),
+        body: JSON.stringify({
+        email: signupEmail.trim(),
+        password: signupPassword,
+        data: { name: signupName.trim() },
+      }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -504,6 +518,7 @@ export default function SayAndItBecomes() {
         setAuthLoading(false);
         return;
       }
+      setProfileName(signupName.trim());
       if (data.access_token) {
         const newSession = {
           accessToken: data.access_token,
@@ -797,6 +812,7 @@ export default function SayAndItBecomes() {
   function goToSignUp() {
     setSignupError("");
     setSignupAgreed(false);
+    setSignupName("");
     setCameFrom("landing");
     stopLessonAudio();
     setStep("signup");
@@ -1064,6 +1080,25 @@ export default function SayAndItBecomes() {
     setTimeout(() => setDownloadNotice(""), 4000);
   }
 
+  function handleShareClick() {
+    if (!isPaidMember) {
+      setShowPaywall(true);
+      return;
+    }
+    setShareOpen((s) => !s);
+  }
+
+  function subscribeMembership() {
+    // No payment processor is connected yet. In the full app this is where a
+    // subscription would be created (e.g. Stripe) before Share is unlocked.
+    setIsPaidMember(true);
+    setShowPaywall(false);
+    setShareOpen(true);
+    setPayCard("");
+    setPayExp("");
+    setPayCvc("");
+  }
+
   function dateLabel(iso) {
     const d = new Date(iso);
     const today = new Date();
@@ -1230,12 +1265,12 @@ export default function SayAndItBecomes() {
               Sign In
             </button>
             <button
-              onClick={goToSignUp}
+              onClick={openSetup}
               className="w-full rounded-2xl py-4 flex items-center justify-center gap-2 font-semibold text-base"
               style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
             >
               <UserPlus size={18} />
-              Join New
+              Get Started
             </button>
           </div>
 
@@ -1271,6 +1306,20 @@ export default function SayAndItBecomes() {
             </button>
           </p>
           <div className="flex flex-col gap-3">
+            <div>
+              <label className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: INK }}>
+                <User size={14} style={{ color: MUTED }} />
+                Name
+              </label>
+              <input
+                type="text"
+                value={signupName}
+                onChange={(e) => setSignupName(e.target.value)}
+                placeholder="Your name"
+                className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
+                style={{ borderColor: "#EAEAEA", color: INK }}
+              />
+            </div>
             <div>
               <label className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: INK }}>
                 <Mail size={14} style={{ color: MUTED }} />
@@ -1385,18 +1434,18 @@ export default function SayAndItBecomes() {
             </div>
           </div>
 
-          <footer className="w-full mt-12 rounded-2xl px-6 py-8" style={{ backgroundColor: "#4B4A47" }}>
-            <p className="text-center text-sm mb-6" style={{ color: "#EDEBE6" }}>
+          <footer className="w-full mt-12 rounded-2xl px-6 py-8" style={{ backgroundColor: "#E9E9E7" }}>
+            <p className="text-center text-sm mb-6" style={{ color: "#000000" }}>
               © {new Date().getFullYear()} Say&amp;itbecomes Inc.
             </p>
             <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
-              <a href="#terms" className="hover:underline" style={{ color: "#CFCCC4" }}>
+              <a href="#terms" className="hover:underline" style={{ color: "#000000" }}>
                 Terms &amp; conditions
               </a>
-              <a href="#privacy" className="hover:underline" style={{ color: "#CFCCC4" }}>
+              <a href="#privacy" className="hover:underline" style={{ color: "#000000" }}>
                 Privacy policy
               </a>
-              <a href="#cookies" className="hover:underline" style={{ color: "#CFCCC4" }}>
+              <a href="#cookies" className="hover:underline" style={{ color: "#000000" }}>
                 Cookie policy
               </a>
             </div>
@@ -1675,12 +1724,12 @@ export default function SayAndItBecomes() {
                 onChange={(e) => setEditText(e.target.value)}
                 rows={5}
                 autoFocus
-                className="w-full text-xl leading-relaxed p-4 rounded-2xl border-2 outline-none resize-none"
+                className="w-full text-base leading-relaxed p-4 rounded-2xl border-2 outline-none resize-none"
                 style={{ color: INK, fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", borderColor: ACCENT }}
               />
             ) : (
               <p
-                className="text-2xl leading-relaxed"
+                className="text-base leading-relaxed"
                 style={{
                   color: INK,
                   fontFamily: "Georgia, 'Times New Roman', serif",
@@ -1816,19 +1865,28 @@ export default function SayAndItBecomes() {
                     </select>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <button onClick={downloadSelectedText} className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold" style={{ backgroundColor: "#FFFFFF", color: INK }}>
-                      <FileText size={14} />
-                      Download Text
-                    </button>
-                    <button onClick={downloadSelectedMp3} className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold" style={{ backgroundColor: "#FFFFFF", color: INK }}>
-                      <FileAudio size={14} />
-                      Download MP3
+                    <button onClick={handleShareClick} className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold" style={{ backgroundColor: "#FFFFFF", color: INK }}>
+                      <Share2 size={14} />
+                      Share
+                      {!isPaidMember && <Lock size={12} style={{ color: MUTED }} />}
                     </button>
                     <button onClick={() => setConfirmDelete(true)} className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold" style={{ backgroundColor: "#FFFFFF", color: "#D64545" }}>
                       <Trash2 size={14} />
                       Delete
                     </button>
                   </div>
+                  {isPaidMember && shareOpen && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button onClick={downloadSelectedText} className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold" style={{ backgroundColor: "#FFFFFF", color: INK }}>
+                        <FileText size={14} />
+                        Download Text
+                      </button>
+                      <button onClick={downloadSelectedMp3} className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold" style={{ backgroundColor: "#FFFFFF", color: INK }}>
+                        <FileAudio size={14} />
+                        Download MP3
+                      </button>
+                    </div>
+                  )}
                   {downloadNotice && (
                     <p className="text-xs px-1" style={{ color: MUTED }}>
                       {downloadNotice}
@@ -2239,6 +2297,116 @@ export default function SayAndItBecomes() {
                 You're not signed in.
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MEMBERSHIP PAYWALL */}
+      {showPaywall && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+          onClick={() => setShowPaywall(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl p-6 max-h-[90vh] overflow-y-auto"
+            style={{ backgroundColor: "#FFFFFF" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Sparkles size={18} style={{ color: ACCENT }} />
+                <h2 className="text-lg font-semibold" style={{ color: INK, fontFamily: "Georgia, 'Times New Roman', serif" }}>
+                  Say &amp; It Becomes Membership
+                </h2>
+              </div>
+              <button onClick={() => setShowPaywall(false)} className="p-1" style={{ color: MUTED }}>
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-sm mb-5" style={{ color: MUTED }}>
+              Sharing your affirmations is a members-only feature.
+            </p>
+
+            <div className="flex flex-col gap-3 mb-4">
+              <button
+                type="button"
+                onClick={() => setPaywallPlan("trial")}
+                className="w-full rounded-2xl p-4 text-left border-2 flex items-start gap-3"
+                style={{ borderColor: paywallPlan === "trial" ? ACCENT : "#EAEAEA" }}
+              >
+                {paywallPlan === "trial" ? (
+                  <CheckCircle2 size={20} style={{ color: ACCENT }} />
+                ) : (
+                  <Circle size={20} style={{ color: MUTED }} />
+                )}
+                <span className="text-sm font-semibold" style={{ color: INK }}>
+                  Starting your 3 days free trial
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaywallPlan("annual")}
+                className="w-full rounded-2xl p-4 text-left border-2 flex items-start gap-3"
+                style={{ borderColor: paywallPlan === "annual" ? ACCENT : "#EAEAEA" }}
+              >
+                {paywallPlan === "annual" ? (
+                  <CheckCircle2 size={20} style={{ color: ACCENT }} />
+                ) : (
+                  <Circle size={20} style={{ color: MUTED }} />
+                )}
+                <span className="text-sm font-semibold" style={{ color: INK }}>
+                  Start today at $75.70/year (includes tax of $81.71)
+                </span>
+              </button>
+            </div>
+
+            <p className="text-sm mb-5" style={{ color: MUTED }}>
+              Cancel anytime
+            </p>
+
+            <div className="flex flex-col gap-3 mb-5">
+              <label className="text-sm font-semibold flex items-center gap-1.5" style={{ color: INK }}>
+                <CreditCard size={14} style={{ color: MUTED }} />
+                Visa
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={payCard}
+                onChange={(e) => setPayCard(e.target.value)}
+                placeholder="Card number"
+                className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
+                style={{ borderColor: "#EAEAEA", color: INK }}
+              />
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={payExp}
+                  onChange={(e) => setPayExp(e.target.value)}
+                  placeholder="MM / YY"
+                  className="flex-1 rounded-2xl p-3.5 text-base outline-none border-2"
+                  style={{ borderColor: "#EAEAEA", color: INK }}
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={payCvc}
+                  onChange={(e) => setPayCvc(e.target.value)}
+                  placeholder="CVC"
+                  className="flex-1 rounded-2xl p-3.5 text-base outline-none border-2"
+                  style={{ borderColor: "#EAEAEA", color: INK }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={subscribeMembership}
+              className="w-full rounded-2xl py-4 flex items-center justify-center gap-2 font-semibold text-base"
+              style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
+            >
+              Subscribe
+            </button>
           </div>
         </div>
       )}
