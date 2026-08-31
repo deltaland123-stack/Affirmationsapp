@@ -92,6 +92,7 @@ export default function SayAndItBecomes() {
   const textareaRef = useRef(null);
   const recognitionRef = useRef(null);
   const speechCancelRef = useRef(false);
+  const elevenAudioRef = useRef(null);
 
   // Gallery
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -383,6 +384,7 @@ export default function SayAndItBecomes() {
         const p = JSON.parse(raw);
         setProfileName(p.name || "");
         setProfileGender(p.gender || "");
+        setProfileEmail(p.email || "");
         setFocusAreas(new Set(p.focusAreas || []));
         setAboutText(p.about || "");
         setSelectedVoiceURI(p.voiceURI || "");
@@ -415,6 +417,7 @@ export default function SayAndItBecomes() {
         JSON.stringify({
           name: profileName,
           gender: profileGender,
+          email: profileEmail,
           focusAreas: Array.from(focusAreas),
           about: aboutText,
           voiceURI: selectedVoiceURI,
@@ -658,6 +661,54 @@ export default function SayAndItBecomes() {
     setStep("declaration");
   }
 
+  // Stop any in-progress ElevenLabs audio playback.
+  function stopAffirmationAudio() {
+    if (elevenAudioRef.current) elevenAudioRef.current.stop();
+  }
+
+  // Ask the secure server endpoint (which talks to ElevenLabs with the secret
+  // API key) to voice `text`, then play the returned MP3. Resolves when playback
+  // finishes or is stopped; rejects if the endpoint is unavailable or playback
+  // fails, so callers can fall back to browser speech synthesis.
+  async function playAffirmationAudio(text) {
+    const res = await fetch("/api/text-to-speech", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+      let detail = "";
+      try {
+        detail = (await res.json())?.error || "";
+      } catch (e) {}
+      throw new Error(detail || `Text-to-speech request failed (${res.status})`);
+    }
+    const blob = await res.blob();
+    if (!blob.size) throw new Error("Empty audio response from server");
+
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    return new Promise((resolve, reject) => {
+      const finish = (cb, arg) => {
+        audio.onended = null;
+        audio.onerror = null;
+        URL.revokeObjectURL(url);
+        if (elevenAudioRef.current === entry) elevenAudioRef.current = null;
+        cb(arg);
+      };
+      const entry = {
+        stop: () => {
+          audio.pause();
+          finish(resolve, "stopped");
+        },
+      };
+      elevenAudioRef.current = entry;
+      audio.onended = () => finish(resolve, "ended");
+      audio.onerror = () => finish(reject, new Error("Audio playback failed"));
+      audio.play().catch((e) => finish(reject, e));
+    });
+  }
+
   function speak(text, onEnd) {
     if (!("speechSynthesis" in window)) return;
     const utter = new SpeechSynthesisUtterance(text);
@@ -704,16 +755,33 @@ export default function SayAndItBecomes() {
     next();
   }
 
-  function playDeclaration() {
+  async function playDeclaration() {
     if (speaking) {
       speechCancelRef.current = true;
+      stopAffirmationAudio();
       window.speechSynthesis.cancel();
       setSpeaking(false);
       return;
     }
     speechCancelRef.current = false;
+    stopAffirmationAudio();
     window.speechSynthesis.cancel();
     setSpeaking(true);
+
+    // Prefer natural ElevenLabs audio from the server; fall back to the
+    // browser's built-in speech synthesis if it's unavailable.
+    try {
+      await playAffirmationAudio(declaration);
+      setSpeaking(false);
+      return;
+    } catch (e) {
+      console.warn("ElevenLabs audio unavailable, using browser speech:", e);
+      if (speechCancelRef.current) {
+        setSpeaking(false);
+        return;
+      }
+    }
+
     speakSentenceQueue(splitIntoSentences(declaration), () => setSpeaking(false));
   }
 
@@ -2039,21 +2107,21 @@ export default function SayAndItBecomes() {
               <p className="text-sm font-semibold mb-2" style={{ color: INK }}>
                 Gender
               </p>
-              <div className="flex rounded-full p-1 w-fit" style={{ backgroundColor: "#F7F7F7" }}>
-                {["Male", "Female", "Other"].map((g) => (
-                  <button
-                    key={g}
-                    onClick={() => setProfileGender(g)}
-                    className="rounded-full px-4 py-2 text-sm font-semibold"
-                    style={{
-                      backgroundColor: profileGender === g ? "#FFFFFF" : "transparent",
-                      color: profileGender === g ? INK : MUTED,
-                      boxShadow: profileGender === g ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
-                    }}
-                  >
-                    {g}
-                  </button>
-                ))}
+              <div className="flex flex-wrap gap-2">
+                {["Male", "Female", "Other"].map((g) => {
+                  const active = profileGender === g;
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setProfileGender(g)}
+                      className="rounded-full px-4 py-2 text-sm font-semibold transition-colors"
+                      style={{ backgroundColor: active ? ACCENT : "#F7F7F7", color: active ? "#FFFFFF" : INK }}
+                    >
+                      {g}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -2065,12 +2133,18 @@ export default function SayAndItBecomes() {
               <input
                 type="email"
                 value={profileEmail}
-                disabled
-                className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
-                style={{ borderColor: "#EAEAEA", color: MUTED, backgroundColor: "#FAFAFA" }}
+                onChange={(e) => setProfileEmail(e.target.value)}
+                disabled={!!session}
+                placeholder="you@example.com"
+                className="w-full rounded-2xl p-3.5 text-base outline-none border-2 transition-colors"
+                style={
+                  session
+                    ? { borderColor: "#EAEAEA", color: MUTED, backgroundColor: "#FAFAFA" }
+                    : { borderColor: profileEmail ? ACCENT : "#EAEAEA", color: INK }
+                }
               />
               <p className="text-xs mt-1.5" style={{ color: MUTED }}>
-                This is your sign-in email.
+                {session ? "This is your sign-in email." : "We'll use this to set up your account."}
               </p>
             </div>
 
