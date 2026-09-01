@@ -700,10 +700,14 @@ export default function SayAndItBecomes() {
   // finishes or is stopped; rejects if the endpoint is unavailable or playback
   // fails, so callers can fall back to browser speech synthesis.
   async function playAffirmationAudio(text) {
+    // Only forward a voice id the server/ElevenLabs will accept — a stale value
+    // (e.g. an old browser voiceURI saved to the profile) would make the request
+    // fail and needlessly drop us to browser speech.
+    const voiceId = ELEVENLABS_VOICES.some((v) => v.id === selectedVoiceURI) ? selectedVoiceURI : "";
     const res = await fetch("/api/text-to-speech", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(selectedVoiceURI ? { text, voiceId: selectedVoiceURI } : { text }),
+      body: JSON.stringify(voiceId ? { text, voiceId } : { text }),
     });
     if (!res.ok) {
       let detail = "";
