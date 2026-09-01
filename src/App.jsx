@@ -2360,7 +2360,7 @@ export default function SayAndItBecomes() {
             You just logged out
           </h1>
           <button
-            onClick={goToSignIn}
+            onClick={goHome}
             className="rounded-2xl px-6 py-3.5 flex items-center gap-2 font-semibold text-sm"
             style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
           >
