@@ -121,7 +121,6 @@ export default function SayAndItBecomes() {
   const [profileEmail, setProfileEmail] = useState("");
   const [focusAreas, setFocusAreas] = useState(new Set());
   const [aboutText, setAboutText] = useState("");
-  const [profileSaved, setProfileSaved] = useState(false);
   const [showPasswordFields, setShowPasswordFields] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -928,34 +927,39 @@ export default function SayAndItBecomes() {
   }
 
   async function saveProfile() {
-    if (!session) {
+    if (session) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+          method: "POST",
+          headers: { ...sbDataHeaders(session), Prefer: "resolution=merge-duplicates,return=representation" },
+          body: JSON.stringify([
+            {
+              id: session.userId,
+              name: profileName,
+              gender: profileGender,
+              focus_areas: Array.from(focusAreas),
+              about: aboutText,
+              voice_uri: selectedVoiceURI,
+              reminder_on: reminderOn,
+              reminder_time: reminderTime,
+            },
+          ]),
+        });
+      } catch (e) {
+        console.error("Could not save profile", e);
+      }
+    } else {
       await persistLocalProfile();
-      setProfileSaved(true);
-      setTimeout(() => setProfileSaved(false), 2000);
-      return;
     }
-    try {
-      await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
-        method: "POST",
-        headers: { ...sbDataHeaders(session), Prefer: "resolution=merge-duplicates,return=representation" },
-        body: JSON.stringify([
-          {
-            id: session.userId,
-            name: profileName,
-            gender: profileGender,
-            focus_areas: Array.from(focusAreas),
-            about: aboutText,
-            voice_uri: selectedVoiceURI,
-            reminder_on: reminderOn,
-            reminder_time: reminderTime,
-          },
-        ]),
-      });
-      setProfileSaved(true);
-      setTimeout(() => setProfileSaved(false), 2000);
-    } catch (e) {
-      console.error("Could not save profile", e);
-    }
+
+    // Head to the affirmation page and clear the entered details from the screen.
+    setShowPasswordFields(false);
+    setProfileName("");
+    setProfileGender("");
+    setProfileEmail("");
+    setFocusAreas(new Set());
+    setAboutText("");
+    setStep("input");
   }
 
   async function submitPasswordChange() {
@@ -2198,21 +2202,6 @@ export default function SayAndItBecomes() {
               />
             </div>
 
-            <button
-              onClick={saveProfile}
-              className="w-full rounded-2xl py-3.5 flex items-center justify-center gap-2 font-semibold text-sm"
-              style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
-            >
-              {profileSaved ? (
-                <>
-                  <Check size={16} />
-                  Saved
-                </>
-              ) : (
-                "Save profile"
-              )}
-            </button>
-
             <div className="pt-2 border-t" style={{ borderColor: "#F0F0F0" }}>
               <button onClick={() => setShowPasswordFields((s) => !s)} className="flex items-center gap-1.5 text-sm font-semibold mt-4" style={{ color: INK }}>
                 <Lock size={14} style={{ color: MUTED }} />
@@ -2348,6 +2337,16 @@ export default function SayAndItBecomes() {
                 />
               </div>
             )}
+
+            <div className="pt-4 border-t" style={{ borderColor: "#F0F0F0" }}>
+              <button
+                onClick={saveProfile}
+                className="w-full rounded-2xl py-3.5 flex items-center justify-center gap-2 font-semibold text-sm"
+                style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
+              >
+                Save profile
+              </button>
+            </div>
           </div>
         </div>
       )}
