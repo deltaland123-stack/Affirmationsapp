@@ -577,8 +577,13 @@ export default function SayAndItBecomes() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setSigninError(data?.error_description || data?.msg || "Incorrect email or password.");
+        // Credentials don't match anything on record — carry the email over and
+        // send them to Setup to finish creating their account.
+        setProfileEmail(signinEmail.trim());
+        setSigninError("");
         setAuthLoading(false);
+        setCameFrom("landing");
+        setStep("setup");
         return;
       }
       const newSession = {
@@ -1241,8 +1246,8 @@ export default function SayAndItBecomes() {
       className="w-full min-h-screen flex flex-col items-center px-6 py-10 font-sans"
       onClick={() => menuOpen && setMenuOpen(false)}
     >
-      {/* Header — hidden on the logged-out confirmation screen */}
-      {step !== "loggedOut" && (
+      {/* Header — hidden on the landing and logged-out screens */}
+      {step !== "loggedOut" && step !== "landing" && (
       <div className="w-full max-w-md flex items-center justify-between mb-10 relative">
         <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: ACCENT }}>
           Say &amp; It Becomes
@@ -1340,45 +1345,82 @@ export default function SayAndItBecomes() {
 
       {/* LANDING */}
       {step === "landing" && (
-        <div className="w-full max-w-md flex-1 flex flex-col justify-center items-center text-center">
-          <style>{`@import url('https://fonts.googleapis.com/css2?family=Alex+Brush&display=swap');`}</style>
-          <h1
-            className="text-5xl leading-tight mb-4"
-            style={{ color: ACCENT, fontFamily: "'Alex Brush', cursive", fontWeight: 400 }}
-          >
-            Welcome to<br />
-            Say &amp; It Becomes
-          </h1>
-          <p className="text-sm mb-6 max-w-xs" style={{ color: MUTED }}>
-            Speak it, and let it become. Turn your thoughts into powerful, spoken affirmations.
-          </p>
+        <div
+          className="fixed inset-0 overflow-y-auto flex flex-col items-center"
+          style={{ backgroundColor: "#C8B998" }}
+        >
+          <style>{`@import url('https://fonts.googleapis.com/css2?family=Parisienne&family=Caveat:wght@600;700&family=Poppins:wght@500;600;800&display=swap');`}</style>
 
-          <button onClick={goToLessons} className="text-sm font-semibold underline mb-10" style={{ color: INK }}>
-            Free Lessons
-          </button>
+          {/* decorative corners */}
+          <svg className="absolute top-0 left-0 pointer-events-none" width="210" height="250" viewBox="0 0 210 250" fill="none" aria-hidden="true">
+            <path d="M-30 235 C 30 120 90 40 205 -10" stroke="#5B5238" strokeOpacity="0.35" strokeWidth="1.4" fill="none" />
+            <path d="M64 66 C 66 79 74 87 87 89 C 74 91 66 99 64 112 C 62 99 54 91 41 89 C 54 87 62 79 64 66 Z" fill="#5B5238" fillOpacity="0.55" />
+            <path d="M128 34 C 129 42 134 47 142 48 C 134 49 129 54 128 62 C 127 54 122 49 114 48 C 122 47 127 42 128 34 Z" fill="#5B5238" fillOpacity="0.4" />
+          </svg>
+          <svg className="absolute bottom-0 right-0 pointer-events-none" width="220" height="250" viewBox="0 0 220 250" fill="none" aria-hidden="true">
+            <path d="M245 20 C 190 130 130 210 15 255" stroke="#5B5238" strokeOpacity="0.3" strokeWidth="1.4" fill="none" />
+            <path d="M158 168 C 160 181 168 189 181 191 C 168 193 160 201 158 214 C 156 201 148 193 135 191 C 148 189 156 181 158 168 Z" fill="#5B5238" fillOpacity="0.55" />
+          </svg>
 
-          <div className="flex flex-col gap-3 w-full">
-            <button
-              onClick={goToSignIn}
-              className="w-full rounded-2xl py-4 flex items-center justify-center gap-2 font-semibold text-base"
-              style={{ backgroundColor: "#F7F7F7", color: INK }}
+          <div className="relative w-full max-w-sm px-7 pt-16 pb-12 flex flex-col items-center text-center min-h-full">
+            <h1
+              className="leading-none"
+              style={{ fontFamily: "'Parisienne', cursive", color: "#544B33", fontSize: "3.15rem" }}
             >
-              <LogIn size={18} />
-              Sign In
-            </button>
-            <button
-              onClick={openSetup}
-              className="w-full rounded-2xl py-4 flex items-center justify-center gap-2 font-semibold text-base"
-              style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
+              Say it, &amp; it becomes
+            </h1>
+            <p
+              className="mt-2 mb-12"
+              style={{ fontFamily: "'Caveat', cursive", color: "#544B33", fontSize: "1.7rem", fontWeight: 600 }}
             >
-              <UserPlus size={18} />
-              Get Started
-            </button>
+              The power of audio affirmation
+            </p>
+
+            <div className="grid grid-cols-2 gap-4 w-full" style={{ fontFamily: "'Poppins', sans-serif" }}>
+              <div className="rounded-[1.75rem] px-4 py-8 flex flex-col items-center justify-center" style={{ backgroundColor: "#F6F0E6" }}>
+                <p className="text-xl leading-tight" style={{ color: "#544B33", fontWeight: 800 }}>
+                  Daily<br />Affirmation
+                </p>
+                <p className="text-base mt-3" style={{ color: "#7C6F55" }}>Today, I Am</p>
+              </div>
+              <div className="rounded-[1.75rem] px-4 py-8 flex flex-col items-center justify-center" style={{ backgroundColor: "#F6F0E6" }}>
+                <p className="text-xl leading-tight" style={{ color: "#544B33", fontWeight: 800 }}>
+                  Universe<br />Whispers
+                </p>
+                <p className="text-base mt-3" style={{ color: "#7C6F55" }}>&ldquo;You Are&hellip;&rdquo;</p>
+              </div>
+              <button
+                onClick={goToLessons}
+                className="rounded-[1.75rem] px-4 py-6 text-base leading-snug"
+                style={{ backgroundColor: "#F6F0E6", color: "#7C6F55", fontWeight: 500 }}
+              >
+                How you can transform your live
+              </button>
+              <div
+                className="rounded-[1.75rem] px-4 py-6 flex items-center justify-center text-base"
+                style={{ backgroundColor: "#F6F0E6", color: "#7C6F55", fontWeight: 500 }}
+              >
+                Powerful quotes
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 w-full mt-14" style={{ maxWidth: "16rem", fontFamily: "'Poppins', sans-serif" }}>
+              <button
+                onClick={goToSignIn}
+                className="rounded-2xl py-4 text-lg"
+                style={{ backgroundColor: "#F6F0E6", color: "#544B33", fontWeight: 500 }}
+              >
+                Log in
+              </button>
+              <button
+                onClick={openSetup}
+                className="rounded-2xl py-4 text-lg"
+                style={{ backgroundColor: "#F6F0E6", color: "#544B33", fontWeight: 500 }}
+              >
+                Get Started
+              </button>
+            </div>
           </div>
-
-          <button onClick={continueAsGuest} className="text-xs mt-6" style={{ color: MUTED }}>
-            Just testing? Continue without an account
-          </button>
         </div>
       )}
 
