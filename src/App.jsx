@@ -41,6 +41,20 @@ const ACCENT = "#E8532A";
 const INK = "#14181F";
 const MUTED = "#8A8F98";
 
+// ElevenLabs premade voices offered in Setup — 4 male, 4 female. The `id` is the
+// ElevenLabs voice_id sent to /api/text-to-speech. All verified available on the
+// project's plan.
+const ELEVENLABS_VOICES = [
+  { id: "nPczCjzI2devNBz1zQrb", label: "Brian — deep, calm (male)" },
+  { id: "JBFqnCBsd6RMkjVDRZzb", label: "George — warm, mature (male)" },
+  { id: "onwK4e9ZLuTAKqWW03F9", label: "Daniel — British, measured (male)" },
+  { id: "bIHbv24MWmeRgasZH58o", label: "Will — friendly, easy (male)" },
+  { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah — soft, warm (female)" },
+  { id: "FGY2WhTYpPnrIDTdsKH5", label: "Laura — bright, smooth (female)" },
+  { id: "Xb7hH8MSUJpSbSDYk0k2", label: "Alice — clear, British (female)" },
+  { id: "XrExE9yKIg1WjnnlVkGX", label: "Matilda — warm, friendly (female)" },
+];
+
 function GoogleIcon({ size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
@@ -689,7 +703,7 @@ export default function SayAndItBecomes() {
     const res = await fetch("/api/text-to-speech", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify(selectedVoiceURI ? { text, voiceId: selectedVoiceURI } : { text }),
     });
     if (!res.ok) {
       let detail = "";
@@ -2165,6 +2179,41 @@ export default function SayAndItBecomes() {
             </div>
 
             <div>
+              <button onClick={() => setShowPasswordFields((s) => !s)} className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: INK }}>
+                <Lock size={14} style={{ color: MUTED }} />
+                Password
+              </button>
+              {showPasswordFields && (
+                <div className="flex flex-col gap-3 mt-3">
+                  <input
+                    type="password"
+                    value={newPw}
+                    onChange={(e) => setNewPw(e.target.value)}
+                    placeholder="New password"
+                    className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
+                    style={{ borderColor: "#EAEAEA", color: INK }}
+                  />
+                  <input
+                    type="password"
+                    value={confirmPw}
+                    onChange={(e) => setConfirmPw(e.target.value)}
+                    placeholder="Confirm new password"
+                    className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
+                    style={{ borderColor: "#EAEAEA", color: INK }}
+                  />
+                  {pwMessage && (
+                    <p className="text-xs" style={{ color: pwMessage === "Password updated." ? ACCENT : "#D64545" }}>
+                      {pwMessage}
+                    </p>
+                  )}
+                  <button onClick={submitPasswordChange} className="rounded-2xl py-3 text-sm font-semibold" style={{ backgroundColor: "#F7F7F7", color: INK }}>
+                    Update password
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div>
               <p className="text-sm font-semibold mb-1" style={{ color: INK }}>
                 What are you working on?
               </p>
@@ -2203,41 +2252,6 @@ export default function SayAndItBecomes() {
             </div>
 
             <div className="pt-2 border-t" style={{ borderColor: "#F0F0F0" }}>
-              <button onClick={() => setShowPasswordFields((s) => !s)} className="flex items-center gap-1.5 text-sm font-semibold mt-4" style={{ color: INK }}>
-                <Lock size={14} style={{ color: MUTED }} />
-                Change password
-              </button>
-              {showPasswordFields && (
-                <div className="flex flex-col gap-3 mt-3">
-                  <input
-                    type="password"
-                    value={newPw}
-                    onChange={(e) => setNewPw(e.target.value)}
-                    placeholder="New password"
-                    className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
-                    style={{ borderColor: "#EAEAEA", color: INK }}
-                  />
-                  <input
-                    type="password"
-                    value={confirmPw}
-                    onChange={(e) => setConfirmPw(e.target.value)}
-                    placeholder="Confirm new password"
-                    className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
-                    style={{ borderColor: "#EAEAEA", color: INK }}
-                  />
-                  {pwMessage && (
-                    <p className="text-xs" style={{ color: pwMessage === "Password updated." ? ACCENT : "#D64545" }}>
-                      {pwMessage}
-                    </p>
-                  )}
-                  <button onClick={submitPasswordChange} className="rounded-2xl py-3 text-sm font-semibold" style={{ backgroundColor: "#F7F7F7", color: INK }}>
-                    Update password
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="pt-2 border-t" style={{ borderColor: "#F0F0F0" }}>
               <p className="text-sm font-semibold mb-2 mt-4" style={{ color: INK }}>
                 Voice
               </p>
@@ -2267,35 +2281,33 @@ export default function SayAndItBecomes() {
               </div>
 
               {voicePref === "coach" ? (
-                availableVoices.length > 0 ? (
-                  <div className="flex gap-2 items-center">
-                    <select
-                      value={selectedVoiceURI}
-                      onChange={(e) => setSelectedVoiceURI(e.target.value)}
-                      className="flex-1 rounded-2xl p-3.5 text-sm outline-none border-2"
-                      style={{ borderColor: "#EAEAEA", color: INK, backgroundColor: "#FFFFFF" }}
-                    >
-                      <option value="">Default voice</option>
-                      {availableVoices.map((v) => (
-                        <option key={v.voiceURI} value={v.voiceURI}>
-                          {v.name} ({v.lang})
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => speak("This is what your affirmations will sound like.")}
-                      className="rounded-full w-11 h-11 flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: "#F7F7F7" }}
-                      aria-label="Preview voice"
-                    >
-                      <Volume2 size={16} style={{ color: ACCENT }} />
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-xs" style={{ color: MUTED }}>
-                    Loading available voices...
-                  </p>
-                )
+                <div className="flex gap-2 items-center">
+                  <select
+                    value={selectedVoiceURI}
+                    onChange={(e) => setSelectedVoiceURI(e.target.value)}
+                    className="flex-1 rounded-2xl p-3.5 text-sm outline-none border-2"
+                    style={{ borderColor: "#EAEAEA", color: INK, backgroundColor: "#FFFFFF" }}
+                  >
+                    <option value="">Default voice</option>
+                    {ELEVENLABS_VOICES.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() =>
+                      playAffirmationAudio("This is what your affirmations will sound like.").catch(() =>
+                        speak("This is what your affirmations will sound like.")
+                      )
+                    }
+                    className="rounded-full w-11 h-11 flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: "#F7F7F7" }}
+                    aria-label="Preview voice"
+                  >
+                    <Volume2 size={16} style={{ color: ACCENT }} />
+                  </button>
+                </div>
               ) : (
                 <div className="rounded-2xl p-3.5 text-sm flex items-start gap-2" style={{ backgroundColor: "#FDF3ED", color: "#9A5230" }}>
                   <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
