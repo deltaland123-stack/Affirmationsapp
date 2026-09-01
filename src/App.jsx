@@ -73,7 +73,7 @@ const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtydGl4dWRrb29qYmh5cHlwanF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4NzY4NDUsImV4cCI6MjEwMzQ1Mjg0NX0.3-Bx-JlBjuYDduSyBoXtUvVTfJEyGU1a4dRlOretEWA";
 
 export default function SayAndItBecomes() {
-  const [step, setStep] = useState("landing"); // landing | signup | signin | input | loading | declaration | gallery | setup | logout | loggedOut | lessons
+  const [step, setStep] = useState("landing"); // landing | signup | signin | input | loading | declaration | gallery | setup | loggedOut | lessons
   const [belief, setBelief] = useState("");
   const [declaration, setDeclaration] = useState("");
   const [error, setError] = useState("");
@@ -584,6 +584,9 @@ export default function SayAndItBecomes() {
   }
 
   async function performLogout() {
+    setMenuOpen(false);
+    stopLessonAudio();
+    setStep("loggedOut");
     // Revoke the session on Supabase too, not just locally.
     if (session?.accessToken) {
       try {
@@ -599,7 +602,6 @@ export default function SayAndItBecomes() {
       }
     }
     await persistSession(null);
-    setMenuOpen(false);
     setProfileName("");
     setProfileGender("");
     setProfileEmail("");
@@ -609,7 +611,6 @@ export default function SayAndItBecomes() {
     setStreak(0);
     setSaidToday(false);
     setSelectedIds(new Set());
-    setStep("loggedOut");
   }
 
   async function saveStreakRemote(newCount, lastDate) {
@@ -874,12 +875,6 @@ export default function SayAndItBecomes() {
     setCameFrom(step === "setup" ? "input" : step);
     stopLessonAudio();
     setStep("setup");
-  }
-  function openLogout() {
-    setMenuOpen(false);
-    setCameFrom(step === "logout" ? "input" : step);
-    stopLessonAudio();
-    setStep("logout");
   }
   function goHome() {
     setMenuOpen(false);
@@ -1309,7 +1304,7 @@ export default function SayAndItBecomes() {
               Free Lessons
             </button>
             <button
-              onClick={openLogout}
+              onClick={performLogout}
               className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
               style={{ color: "#D64545" }}
             >
@@ -2352,41 +2347,6 @@ export default function SayAndItBecomes() {
                   style={{ borderColor: "#EAEAEA", color: INK }}
                 />
               </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* LOGOUT */}
-      {step === "logout" && (
-        <div className="w-full max-w-md flex-1 flex flex-col">
-          <button onClick={backFromSubpage} className="flex items-center gap-1.5 mb-6 text-sm font-semibold" style={{ color: MUTED }}>
-            <ArrowLeft size={16} />
-            Back
-          </button>
-          <div className="flex-1 flex flex-col items-center justify-center text-center">
-            <LogOut size={28} style={{ color: "#D8D8D8" }} />
-            <h1 className="text-xl font-semibold mt-4 mb-2" style={{ color: INK, fontFamily: "Georgia, 'Times New Roman', serif" }}>
-              Logout
-            </h1>
-            {session ? (
-              <>
-                <p className="text-sm max-w-xs mb-6" style={{ color: MUTED }}>
-                  You're signed in as <strong style={{ color: INK }}>{session.email}</strong>.
-                </p>
-                <button
-                  onClick={performLogout}
-                  className="rounded-2xl px-6 py-3.5 flex items-center gap-2 font-semibold text-sm"
-                  style={{ backgroundColor: "#D64545", color: "#FFFFFF" }}
-                >
-                  <LogOut size={16} />
-                  Log out
-                </button>
-              </>
-            ) : (
-              <p className="text-sm max-w-xs" style={{ color: MUTED }}>
-                You're not signed in.
-              </p>
             )}
           </div>
         </div>
