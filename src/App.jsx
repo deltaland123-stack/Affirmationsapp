@@ -73,7 +73,7 @@ const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtydGl4dWRrb29qYmh5cHlwanF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4NzY4NDUsImV4cCI6MjEwMzQ1Mjg0NX0.3-Bx-JlBjuYDduSyBoXtUvVTfJEyGU1a4dRlOretEWA";
 
 export default function SayAndItBecomes() {
-  const [step, setStep] = useState("landing"); // landing | signup | signin | input | loading | declaration | gallery | setup | logout | lessons
+  const [step, setStep] = useState("landing"); // landing | signup | signin | input | loading | declaration | gallery | setup | logout | loggedOut | lessons
   const [belief, setBelief] = useState("");
   const [declaration, setDeclaration] = useState("");
   const [error, setError] = useState("");
@@ -584,7 +584,22 @@ export default function SayAndItBecomes() {
   }
 
   async function performLogout() {
+    // Revoke the session on Supabase too, not just locally.
+    if (session?.accessToken) {
+      try {
+        await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+        });
+      } catch (e) {
+        console.error("Could not revoke Supabase session", e);
+      }
+    }
     await persistSession(null);
+    setMenuOpen(false);
     setProfileName("");
     setProfileGender("");
     setProfileEmail("");
@@ -594,7 +609,7 @@ export default function SayAndItBecomes() {
     setStreak(0);
     setSaidToday(false);
     setSelectedIds(new Set());
-    setStep("landing");
+    setStep("loggedOut");
   }
 
   async function saveStreakRemote(newCount, lastDate) {
@@ -1209,7 +1224,8 @@ export default function SayAndItBecomes() {
       className="w-full min-h-screen flex flex-col items-center px-6 py-10 font-sans"
       onClick={() => menuOpen && setMenuOpen(false)}
     >
-      {/* Header */}
+      {/* Header — hidden on the logged-out confirmation screen */}
+      {step !== "loggedOut" && (
       <div className="w-full max-w-md flex items-center justify-between mb-10 relative">
         <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: ACCENT }}>
           Say &amp; It Becomes
@@ -1303,6 +1319,7 @@ export default function SayAndItBecomes() {
           </div>
         )}
       </div>
+      )}
 
       {/* LANDING */}
       {step === "landing" && (
@@ -2372,6 +2389,24 @@ export default function SayAndItBecomes() {
               </p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* LOGGED OUT */}
+      {step === "loggedOut" && (
+        <div className="w-full max-w-md flex-1 flex flex-col justify-center items-center text-center">
+          <LogOut size={28} style={{ color: "#D8D8D8" }} />
+          <h1 className="text-xl font-semibold mt-4 mb-6" style={{ color: INK, fontFamily: "Georgia, 'Times New Roman', serif" }}>
+            You just logged out
+          </h1>
+          <button
+            onClick={goToSignIn}
+            className="rounded-2xl px-6 py-3.5 flex items-center gap-2 font-semibold text-sm"
+            style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
+          >
+            <LogIn size={16} />
+            Login
+          </button>
         </div>
       )}
 
