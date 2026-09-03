@@ -55,6 +55,32 @@ const ELEVENLABS_VOICES = [
   { id: "XrExE9yKIg1WjnnlVkGX", label: "Matilda — warm, friendly (female)" },
 ];
 
+// Rewrite a first-person "I AM" affirmation as a second-person "You are" whisper,
+// opened with the reader's name. Used by the Universe Whispers page — same rules
+// as a normal affirmation, just addressed to "you".
+function toUniverseWhisper(text, name) {
+  let t = text
+    .replace(/\bI [Aa][Mm]\b/g, "you are")
+    .replace(/\bI['’]m\b/gi, "you're")
+    .replace(/\bI['’]ve\b/gi, "you've")
+    .replace(/\bI['’]ll\b/gi, "you'll")
+    .replace(/\bmyself\b/gi, "yourself")
+    .replace(/\bI\b/g, "you")
+    .replace(/\bmine\b/gi, "yours")
+    .replace(/\bmy\b/gi, "your")
+    .replace(/\bme\b/gi, "you");
+  // Recapitalise the start of each sentence.
+  t = t.replace(/(^|[.!?]\s+)([a-z])/g, (_, pre, ch) => pre + ch.toUpperCase());
+  // Open the affirmation with the user's name.
+  const who = (name || "").trim();
+  if (who) {
+    t = t.replace(/^today,\s*/i, "");
+    t = t.charAt(0).toLowerCase() + t.slice(1);
+    t = `${who}, ${t}`;
+  }
+  return t;
+}
+
 function GoogleIcon({ size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
@@ -673,6 +699,7 @@ export default function SayAndItBecomes() {
 
   async function handleSubmit() {
     if (!belief.trim()) return;
+    const asWhisper = step === "whispers";
     setError("");
     setStep("loading");
 
@@ -691,7 +718,9 @@ export default function SayAndItBecomes() {
       text = localFallbackAffirmation();
     }
 
-    setDeclaration(text.replace(/^["']|["']$/g, ""));
+    let finalText = text.replace(/^["']|["']$/g, "");
+    if (asWhisper) finalText = toUniverseWhisper(finalText, firstName);
+    setDeclaration(finalText);
     setStep("declaration");
   }
 
@@ -1249,10 +1278,15 @@ export default function SayAndItBecomes() {
 
   const selectedCount = selectedIds.size;
   const firstName = profileName.trim().split(" ")[0] || "";
+  const isWhisper = step === "whispers";
 
   return (
     <div
-      style={{ backgroundColor: "#FFFFFF", minHeight: "100%", color: INK }}
+      style={{
+        backgroundColor: isWhisper ? "#E4DCCC" : "#FFFFFF",
+        minHeight: "100%",
+        color: INK,
+      }}
       className="w-full min-h-screen flex flex-col items-center px-6 py-10 font-sans"
       onClick={() => menuOpen && setMenuOpen(false)}
     >
@@ -1749,14 +1783,16 @@ export default function SayAndItBecomes() {
         </div>
       )}
 
-      {/* INPUT */}
+      {/* INPUT / UNIVERSE WHISPERS */}
       {(step === "input" || step === "whispers") && (
         <div className="w-full max-w-md flex-1 flex flex-col justify-center">
           <h1 className="text-3xl leading-tight font-semibold mb-3" style={{ color: INK, fontFamily: "Georgia, 'Times New Roman', serif" }}>
-            What's on your mind?
+            {isWhisper ? "Universe Whispers" : "What's on your mind?"}
           </h1>
           <p className="text-sm mb-6" style={{ color: MUTED }}>
-            A worry, a doubt, a goal — say it or type it. We'll turn it into a powerful affirmation.
+            {isWhisper
+              ? "Universe whats to energize you. Type/Speak How do you want others to see you, call you or remember you."
+              : "A worry, a doubt, a goal — say it or type it. We'll turn it into a powerful affirmation."}
           </p>
 
           <div className="flex rounded-full p-1 mb-5 w-fit" style={{ backgroundColor: "#F7F7F7" }}>
@@ -1799,7 +1835,7 @@ export default function SayAndItBecomes() {
               ref={textareaRef}
               value={belief}
               onChange={(e) => setBelief(e.target.value)}
-              placeholder="I'm never going to be financially secure..."
+              placeholder={isWhisper ? "Who do you like the world to see you? " : "I'm never going to be financially secure..."}
               rows={4}
               className="w-full rounded-2xl p-4 text-base resize-none outline-none border-2 transition-colors"
               style={{ borderColor: belief ? ACCENT : "#EAEAEA", color: INK }}
@@ -1817,7 +1853,7 @@ export default function SayAndItBecomes() {
                     className="w-full rounded-2xl p-4 mb-4 text-base border-2 min-h-[104px]"
                     style={{ borderColor: isListening ? ACCENT : "#EAEAEA", color: belief ? INK : MUTED }}
                   >
-                    {belief || "Tap the mic and say what's on your mind..."}
+                    {belief || (isWhisper ? "Who do you like the world to see you? " : "Tap the mic and say what's on your mind...")}
                   </div>
                   <button
                     onClick={toggleListening}
@@ -1854,7 +1890,7 @@ export default function SayAndItBecomes() {
             className="w-full mt-5 rounded-2xl py-4 flex items-center justify-center gap-2 font-semibold text-base transition-opacity disabled:opacity-30"
             style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
           >
-            Turn it into an affirmation
+            {isWhisper ? "Let the universe whisper" : "Turn it into an affirmation"}
             <ArrowRight size={18} />
           </button>
         </div>
