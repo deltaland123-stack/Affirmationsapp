@@ -1488,12 +1488,17 @@ export default function SayAndItBecomes() {
             </p>
 
             <div className="grid grid-cols-2 gap-4 w-full" style={{ fontFamily: "'Poppins', sans-serif" }}>
-              <div className="rounded-[1.75rem] px-4 py-8 flex flex-col items-center justify-center" style={{ backgroundColor: "#F6F0E6" }}>
+              <button
+                type="button"
+                onClick={startOver}
+                className="rounded-[1.75rem] px-4 py-8 flex flex-col items-center justify-center"
+                style={{ backgroundColor: "#F6F0E6" }}
+              >
                 <p className="text-xl leading-tight" style={{ color: "#544B33", fontWeight: 800 }}>
                   Daily<br />Affirmation
                 </p>
                 <p className="text-base mt-3" style={{ color: "#7C6F55" }}>Today, I Am</p>
-              </div>
+              </button>
               <button
                 type="button"
                 onClick={goToWhisperName}
