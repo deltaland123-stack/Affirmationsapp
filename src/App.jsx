@@ -1856,46 +1856,48 @@ export default function SayAndItBecomes() {
           </h1>
           <p className={`text-sm mb-6 ${isWhisper ? "text-center" : ""}`} style={{ color: MUTED }}>
             {isWhisper
-              ? "Universe whats to energize you. Type/Speak How do you want others to see you, call you or remember you."
+              ? "Universe whats to energize you. How do you want others to see you, call you or remember you."
               : "A worry, a doubt, a goal — say it or type it. We'll turn it into a powerful affirmation."}
           </p>
 
-          <div className="flex rounded-full p-1 mb-5 w-fit" style={{ backgroundColor: "#F7F7F7" }}>
-            <button
-              onClick={() => {
-                if (isListening) toggleListening();
-                setMicError("");
-                setInputMode("type");
-              }}
-              className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors"
-              style={{
-                backgroundColor: inputMode === "type" ? "#FFFFFF" : "transparent",
-                color: inputMode === "type" ? INK : MUTED,
-                boxShadow: inputMode === "type" ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
-              }}
-            >
-              <Keyboard size={15} />
-              Type
-            </button>
-            <button
-              onClick={() => {
-                setMicError("");
-                setInputMode("mic");
-              }}
-              disabled={!micSupported}
-              className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-40"
-              style={{
-                backgroundColor: inputMode === "mic" ? "#FFFFFF" : "transparent",
-                color: inputMode === "mic" ? INK : MUTED,
-                boxShadow: inputMode === "mic" ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
-              }}
-            >
-              <Mic size={15} />
-              Speak
-            </button>
-          </div>
+          {!isWhisper && (
+            <div className="flex rounded-full p-1 mb-5 w-fit" style={{ backgroundColor: "#F7F7F7" }}>
+              <button
+                onClick={() => {
+                  if (isListening) toggleListening();
+                  setMicError("");
+                  setInputMode("type");
+                }}
+                className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors"
+                style={{
+                  backgroundColor: inputMode === "type" ? "#FFFFFF" : "transparent",
+                  color: inputMode === "type" ? INK : MUTED,
+                  boxShadow: inputMode === "type" ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+                }}
+              >
+                <Keyboard size={15} />
+                Type
+              </button>
+              <button
+                onClick={() => {
+                  setMicError("");
+                  setInputMode("mic");
+                }}
+                disabled={!micSupported}
+                className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-40"
+                style={{
+                  backgroundColor: inputMode === "mic" ? "#FFFFFF" : "transparent",
+                  color: inputMode === "mic" ? INK : MUTED,
+                  boxShadow: inputMode === "mic" ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+                }}
+              >
+                <Mic size={15} />
+                Speak
+              </button>
+            </div>
+          )}
 
-          {inputMode === "type" ? (
+          {isWhisper || inputMode === "type" ? (
             <textarea
               ref={textareaRef}
               value={belief}
