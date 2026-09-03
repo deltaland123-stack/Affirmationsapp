@@ -2134,18 +2134,10 @@ export default function SayAndItBecomes() {
       {/* GALLERY */}
       {step === "gallery" && (
         <div className="w-full max-w-md flex-1 flex flex-col">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center mb-6">
             <button onClick={backFromSubpage} className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: MUTED }}>
               <ArrowLeft size={16} />
               Back
-            </button>
-            <button
-              onClick={startOver}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold"
-              style={{ backgroundColor: "#F7F7F7", color: INK }}
-            >
-              <Sparkles size={14} style={{ color: ACCENT }} />
-              Affirmation page
             </button>
           </div>
 
