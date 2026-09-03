@@ -1327,6 +1327,84 @@ export default function SayAndItBecomes() {
   const firstName = profileName.trim().split(" ")[0] || "";
   const isWhisper = step === "whispers";
 
+  function renderMenuPanel() {
+    return (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="absolute right-0 top-9 w-48 rounded-2xl py-2 z-20"
+        style={{ backgroundColor: "#FFFFFF", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid #F0F0F0" }}
+      >
+        <button
+          onClick={goHome}
+          className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
+          style={{ color: INK }}
+        >
+          <Home size={16} style={{ color: MUTED }} />
+          Home
+        </button>
+        <button
+          onClick={() => {
+            setMenuOpen(false);
+            startOver();
+          }}
+          className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
+          style={{ color: INK }}
+        >
+          <Sparkles size={16} style={{ color: MUTED }} />
+          Affirmation
+        </button>
+        <button
+          onClick={() => {
+            setMenuOpen(false);
+            goToWhisperName();
+          }}
+          className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
+          style={{ color: INK }}
+        >
+          <Volume2 size={16} style={{ color: MUTED }} />
+          Universe whisper
+        </button>
+        <button
+          onClick={openGallery}
+          className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
+          style={{ color: INK }}
+        >
+          <BookOpen size={16} style={{ color: MUTED }} />
+          Gallery
+        </button>
+        <button
+          onClick={openSetup}
+          className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
+          style={{ color: INK }}
+        >
+          <Settings size={16} style={{ color: MUTED }} />
+          Setup
+        </button>
+        <button
+          onClick={() => {
+            setMenuOpen(false);
+            setLessonPage(0);
+            setCameFrom(step === "lessons" ? "input" : step);
+            setStep("lessons");
+          }}
+          className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
+          style={{ color: INK }}
+        >
+          <GraduationCap size={16} style={{ color: MUTED }} />
+          Free Lessons
+        </button>
+        <button
+          onClick={performLogout}
+          className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
+          style={{ color: "#D64545" }}
+        >
+          <LogOut size={16} style={{ color: "#D64545" }} />
+          Logout
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -1369,81 +1447,7 @@ export default function SayAndItBecomes() {
           </button>
         </div>
 
-        {menuOpen && (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="absolute right-0 top-9 w-48 rounded-2xl py-2 z-20"
-            style={{ backgroundColor: "#FFFFFF", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid #F0F0F0" }}
-          >
-            <button
-              onClick={goHome}
-              className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
-              style={{ color: INK }}
-            >
-              <Home size={16} style={{ color: MUTED }} />
-              Home
-            </button>
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                startOver();
-              }}
-              className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
-              style={{ color: INK }}
-            >
-              <Sparkles size={16} style={{ color: MUTED }} />
-              Affirmation
-            </button>
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                goToWhisperName();
-              }}
-              className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
-              style={{ color: INK }}
-            >
-              <Volume2 size={16} style={{ color: MUTED }} />
-              Universe whisper
-            </button>
-            <button
-              onClick={openGallery}
-              className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
-              style={{ color: INK }}
-            >
-              <BookOpen size={16} style={{ color: MUTED }} />
-              Gallery
-            </button>
-            <button
-              onClick={openSetup}
-              className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
-              style={{ color: INK }}
-            >
-              <Settings size={16} style={{ color: MUTED }} />
-              Setup
-            </button>
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                setLessonPage(0);
-                setCameFrom(step === "lessons" ? "input" : step);
-                setStep("lessons");
-              }}
-              className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
-              style={{ color: INK }}
-            >
-              <GraduationCap size={16} style={{ color: MUTED }} />
-              Free Lessons
-            </button>
-            <button
-              onClick={performLogout}
-              className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
-              style={{ color: "#D64545" }}
-            >
-              <LogOut size={16} style={{ color: "#D64545" }} />
-              Logout
-            </button>
-          </div>
-        )}
+        {menuOpen && renderMenuPanel()}
       </div>
       )}
 
@@ -1551,7 +1555,23 @@ export default function SayAndItBecomes() {
             <path d="M158 168 C 160 181 168 189 181 191 C 168 193 160 201 158 214 C 156 201 148 193 135 191 C 148 189 156 181 158 168 Z" fill="#5B5238" fillOpacity="0.55" />
           </svg>
 
-          <div className="relative w-full max-w-sm px-7 flex flex-col items-center justify-center text-center min-h-full">
+          <div className="w-full max-w-sm px-7 pt-6 flex justify-end">
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen((o) => !o);
+                }}
+                aria-label="Menu"
+                className="p-1"
+              >
+                <Menu size={22} style={{ color: "#544B33" }} />
+              </button>
+              {menuOpen && renderMenuPanel()}
+            </div>
+          </div>
+
+          <div className="relative w-full max-w-sm px-7 flex-1 flex flex-col items-center justify-center text-center pb-16">
             <h1
               className="leading-tight mb-8"
               style={{ fontFamily: "'Parisienne', cursive", color: "#544B33", fontSize: "2.6rem" }}
