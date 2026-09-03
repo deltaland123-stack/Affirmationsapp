@@ -1786,10 +1786,6 @@ export default function SayAndItBecomes() {
       {/* SIGN IN */}
       {step === "signin" && (
         <div className="w-full max-w-md flex-1 flex flex-col justify-center">
-          <button onClick={backFromSubpage} className="flex items-center gap-1.5 mb-8 text-sm font-semibold" style={{ color: MUTED }}>
-            <ArrowLeft size={16} />
-            Back
-          </button>
           <h1 className="text-3xl leading-tight font-semibold mb-2" style={{ color: INK, fontFamily: "Georgia, 'Times New Roman', serif" }}>
             Sign in
           </h1>
