@@ -1404,18 +1404,18 @@ export default function SayAndItBecomes() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-4 w-full mt-14" style={{ maxWidth: "16rem", fontFamily: "'Poppins', sans-serif" }}>
+            <div className="flex flex-col gap-3 w-full mt-14 items-center" style={{ fontFamily: "'Poppins', sans-serif" }}>
               <button
                 onClick={goToSignIn}
-                className="rounded-2xl py-4 text-lg"
-                style={{ backgroundColor: "#F6F0E6", color: "#544B33", fontWeight: 500 }}
+                className="rounded-2xl py-2.5 px-4 text-lg w-full whitespace-nowrap"
+                style={{ backgroundColor: "#F6F0E6", color: "#544B33", fontWeight: 500, maxWidth: "11rem" }}
               >
                 Log in
               </button>
               <button
                 onClick={openSetup}
-                className="rounded-2xl py-4 text-lg"
-                style={{ backgroundColor: "#F6F0E6", color: "#544B33", fontWeight: 500 }}
+                className="rounded-2xl py-2.5 px-4 text-lg w-full whitespace-nowrap"
+                style={{ backgroundColor: "#F6F0E6", color: "#544B33", fontWeight: 500, maxWidth: "11rem" }}
               >
                 Get Started
               </button>
