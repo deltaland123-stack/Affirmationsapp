@@ -31,8 +31,13 @@ create table if not exists public.affirmations (
   user_id    uuid        not null references auth.users (id) on delete cascade,
   text       text        not null,
   play_count integer     not null default 0,
+  kind       text        not null default 'affirmation',  -- 'affirmation' | 'whisper'
   created_at timestamptz not null default now()
 );
+
+-- If the table already exists from an earlier run, add the column:
+alter table public.affirmations
+  add column if not exists kind text not null default 'affirmation';
 
 create index if not exists affirmations_user_created_idx
   on public.affirmations (user_id, created_at desc);

@@ -71,12 +71,26 @@ function toUniverseWhisper(text, name) {
     .replace(/\bme\b/gi, "you");
   // Recapitalise the start of each sentence.
   t = t.replace(/(^|[.!?]\s+)([a-z])/g, (_, pre, ch) => pre + ch.toUpperCase());
-  // Open the affirmation with the user's name.
-  const who = (name || "").trim();
+
+  // Name, capitalised, used in two spots.
+  const raw = (name || "").trim();
+  const who = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : "";
   if (who) {
+    // 1) Open the affirmation with the name.
     t = t.replace(/^today,\s*/i, "");
     t = t.charAt(0).toLowerCase() + t.slice(1);
     t = `${who}, ${t}`;
+    // 2) Drop the name in a second time, at a random sentence in the body
+    //    (never the first or last sentence).
+    const sentences = t.match(/[^.!?]+[.!?]+(?:\s+|$)/g);
+    if (sentences && sentences.length > 2) {
+      const i = 1 + Math.floor(Math.random() * (sentences.length - 2));
+      sentences[i] = sentences[i].replace(
+        /^(\s*)([A-Za-z])/,
+        (_, sp, c) => `${sp}${who}, ${c.toLowerCase()}`
+      );
+      t = sentences.join("");
+    }
   }
   return t;
 }
@@ -118,6 +132,7 @@ export default function SayAndItBecomes() {
   const [declaration, setDeclaration] = useState("");
   const [error, setError] = useState("");
   const [whisperName, setWhisperName] = useState("");
+  const [resultKind, setResultKind] = useState("affirmation"); // "affirmation" | "whisper" — source of the current declaration
   const [streak, setStreak] = useState(0);
   const [saidToday, setSaidToday] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -503,7 +518,13 @@ export default function SayAndItBecomes() {
       const rows = await res.json();
       if (Array.isArray(rows)) {
         setGallery(
-          rows.map((r) => ({ id: r.id, text: r.text, createdAt: r.created_at, playCount: r.play_count || 0 }))
+          rows.map((r) => ({
+            id: r.id,
+            text: r.text,
+            createdAt: r.created_at,
+            playCount: r.play_count || 0,
+            kind: r.kind || "affirmation",
+          }))
         );
       }
     } catch (e) {
@@ -721,6 +742,7 @@ export default function SayAndItBecomes() {
 
     let finalText = text.replace(/^["']|["']$/g, "");
     if (asWhisper) finalText = toUniverseWhisper(finalText, whisperName.trim() || firstName);
+    setResultKind(asWhisper ? "whisper" : "affirmation");
     setDeclaration(finalText);
     setStep("declaration");
   }
@@ -876,12 +898,13 @@ export default function SayAndItBecomes() {
     setEditText("");
   }
 
-  async function saveToGallery(text) {
+  async function saveToGallery(text, kind = "affirmation") {
     const newItem = {
       id: session ? null : `local-${Date.now()}`,
       text,
       createdAt: new Date().toISOString(),
       playCount: 0,
+      kind,
     };
     if (!session) {
       const updated = [newItem, ...gallery];
@@ -890,14 +913,22 @@ export default function SayAndItBecomes() {
       return newItem.id;
     }
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/affirmations`, {
+      let res = await fetch(`${SUPABASE_URL}/rest/v1/affirmations`, {
         method: "POST",
         headers: { ...sbDataHeaders(session), Prefer: "return=representation" },
-        body: JSON.stringify([{ user_id: session.userId, text, play_count: 0 }]),
+        body: JSON.stringify([{ user_id: session.userId, text, play_count: 0, kind }]),
       });
+      if (!res.ok) {
+        // `kind` column may not exist yet — retry without it.
+        res = await fetch(`${SUPABASE_URL}/rest/v1/affirmations`, {
+          method: "POST",
+          headers: { ...sbDataHeaders(session), Prefer: "return=representation" },
+          body: JSON.stringify([{ user_id: session.userId, text, play_count: 0 }]),
+        });
+      }
       const rows = await res.json();
       const row = rows[0];
-      const savedItem = { id: row.id, text: row.text, createdAt: row.created_at, playCount: row.play_count || 0 };
+      const savedItem = { id: row.id, text: row.text, createdAt: row.created_at, playCount: row.play_count || 0, kind: row.kind || kind };
       setGallery((g) => [savedItem, ...g]);
       return savedItem.id;
     } catch (e) {
@@ -910,7 +941,7 @@ export default function SayAndItBecomes() {
   }
 
   async function goToGallery() {
-    await saveToGallery(declaration);
+    await saveToGallery(declaration, resultKind);
     setCameFrom("declaration");
     setStep("gallery");
   }
@@ -1357,6 +1388,17 @@ export default function SayAndItBecomes() {
             >
               <Sparkles size={16} style={{ color: MUTED }} />
               Affirmation
+            </button>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                goToWhisperName();
+              }}
+              className="w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-2.5"
+              style={{ color: INK }}
+            >
+              <Volume2 size={16} style={{ color: MUTED }} />
+              Universe whisper
             </button>
             <button
               onClick={openGallery}
@@ -1977,7 +2019,7 @@ export default function SayAndItBecomes() {
       {step === "declaration" && (
         <div className="w-full max-w-md flex-1 flex flex-col">
           <p className="text-xs font-semibold tracking-widest uppercase mb-6" style={{ color: MUTED }}>
-            Today's affirmation
+            {resultKind === "whisper" ? "Today whisper" : "Today's affirmation"}
           </p>
           <div className="flex-1 flex items-center py-4">
             {isEditing ? (
@@ -2043,9 +2085,13 @@ export default function SayAndItBecomes() {
                 </button>
               </div>
 
-              <button onClick={startOver} className="w-full py-4 flex items-center justify-center gap-2 text-sm font-medium" style={{ color: MUTED }}>
+              <button
+                onClick={resultKind === "whisper" ? goToWhispers : startOver}
+                className="w-full py-4 flex items-center justify-center gap-2 text-sm font-medium"
+                style={{ color: MUTED }}
+              >
                 <RotateCcw size={14} />
-                New affirmation
+                {resultKind === "whisper" ? "New whisper" : "New affirmation"}
               </button>
             </>
           )}
@@ -2232,6 +2278,16 @@ export default function SayAndItBecomes() {
                               {item.text}
                             </p>
                             <div className="flex items-center gap-3 mt-2 flex-wrap">
+                              <span
+                                className="text-[10px] font-semibold uppercase tracking-wide rounded-full px-2 py-0.5"
+                                style={
+                                  item.kind === "whisper"
+                                    ? { backgroundColor: "#EAE0CB", color: "#7A6A45" }
+                                    : { backgroundColor: "#FBEAE3", color: "#9A5230" }
+                                }
+                              >
+                                {item.kind === "whisper" ? "Whisper" : "Affirmation"}
+                              </span>
                               <span className="text-xs" style={{ color: MUTED }}>
                                 {dateTimeLabel(item.createdAt)}
                               </span>
