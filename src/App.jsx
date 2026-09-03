@@ -997,6 +997,10 @@ export default function SayAndItBecomes() {
   }
 
   function goToWhispers() {
+    // The name from "What should I call you?" also becomes the app-wide name
+    // (shown in the header). A name may also come from the registration page.
+    const wn = whisperName.trim();
+    if (wn) setProfileName(wn.charAt(0).toUpperCase() + wn.slice(1));
     setBelief("");
     setDeclaration("");
     setError("");
