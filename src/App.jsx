@@ -1297,12 +1297,14 @@ export default function SayAndItBecomes() {
           Say &amp; It Becomes
         </p>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <Flame size={18} style={{ color: streak > 0 ? ACCENT : "#D8D8D8" }} fill={streak > 0 ? ACCENT : "none"} />
-            <span className="text-sm font-semibold" style={{ color: INK }}>
-              {streak}
-            </span>
-          </div>
+          {streak > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Flame size={18} style={{ color: ACCENT }} fill={ACCENT} />
+              <span className="text-sm font-semibold" style={{ color: INK }}>
+                {streak}
+              </span>
+            </div>
+          )}
           {firstName && (
             <span className="text-sm font-semibold" style={{ color: INK }}>
               Hi, {firstName}
@@ -1785,11 +1787,14 @@ export default function SayAndItBecomes() {
 
       {/* INPUT / UNIVERSE WHISPERS */}
       {(step === "input" || step === "whispers") && (
-        <div className="w-full max-w-md flex-1 flex flex-col justify-center">
-          <h1 className="text-3xl leading-tight font-semibold mb-3" style={{ color: INK, fontFamily: "Georgia, 'Times New Roman', serif" }}>
+        <div className={`w-full max-w-md flex-1 flex flex-col justify-center ${isWhisper ? "-mt-16" : ""}`}>
+          <h1
+            className={`text-3xl leading-tight font-semibold mb-3 ${isWhisper ? "text-center" : ""}`}
+            style={{ color: INK, fontFamily: "Georgia, 'Times New Roman', serif" }}
+          >
             {isWhisper ? "Universe Whispers" : "What's on your mind?"}
           </h1>
-          <p className="text-sm mb-6" style={{ color: MUTED }}>
+          <p className={`text-sm mb-6 ${isWhisper ? "text-center" : ""}`} style={{ color: MUTED }}>
             {isWhisper
               ? "Universe whats to energize you. Type/Speak How do you want others to see you, call you or remember you."
               : "A worry, a doubt, a goal — say it or type it. We'll turn it into a powerful affirmation."}
