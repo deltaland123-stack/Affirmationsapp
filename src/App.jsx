@@ -2619,6 +2619,9 @@ export default function SayAndItBecomes() {
       {/* LOGGED OUT */}
       {step === "loggedOut" && (
         <div className="w-full max-w-md flex-1 flex flex-col justify-center items-center text-center">
+          <p className="text-sm font-semibold tracking-wide mb-8" style={{ color: ACCENT }}>
+            Say it, &amp; it becomes
+          </p>
           <LogOut size={28} style={{ color: "#D8D8D8" }} />
           <h1 className="text-xl font-semibold mt-4 mb-6" style={{ color: INK, fontFamily: "Georgia, 'Times New Roman', serif" }}>
             You just logged out
