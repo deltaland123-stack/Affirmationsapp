@@ -87,7 +87,7 @@ const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtydGl4dWRrb29qYmh5cHlwanF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4NzY4NDUsImV4cCI6MjEwMzQ1Mjg0NX0.3-Bx-JlBjuYDduSyBoXtUvVTfJEyGU1a4dRlOretEWA";
 
 export default function SayAndItBecomes() {
-  const [step, setStep] = useState("landing"); // landing | signup | signin | input | loading | declaration | gallery | setup | loggedOut | lessons
+  const [step, setStep] = useState("landing"); // landing | signup | signin | input | whispers | loading | declaration | gallery | setup | loggedOut | lessons
   const [belief, setBelief] = useState("");
   const [declaration, setDeclaration] = useState("");
   const [error, setError] = useState("");
@@ -923,6 +923,16 @@ export default function SayAndItBecomes() {
     setStep("lessons");
   }
 
+  function goToWhispers() {
+    setBelief("");
+    setDeclaration("");
+    setError("");
+    setMicError("");
+    setIsEditing(false);
+    setCameFrom("landing");
+    setStep("whispers");
+  }
+
   function backFromSubpage() {
     stopSequence();
     setSelectedIds(new Set());
@@ -1383,12 +1393,17 @@ export default function SayAndItBecomes() {
                 </p>
                 <p className="text-base mt-3" style={{ color: "#7C6F55" }}>Today, I Am</p>
               </div>
-              <div className="rounded-[1.75rem] px-4 py-8 flex flex-col items-center justify-center" style={{ backgroundColor: "#F6F0E6" }}>
+              <button
+                type="button"
+                onClick={goToWhispers}
+                className="rounded-[1.75rem] px-4 py-8 flex flex-col items-center justify-center"
+                style={{ backgroundColor: "#F6F0E6" }}
+              >
                 <p className="text-xl leading-tight" style={{ color: "#544B33", fontWeight: 800 }}>
                   Universe<br />Whispers
                 </p>
                 <p className="text-base mt-3" style={{ color: "#7C6F55" }}>&ldquo;You Are&hellip;&rdquo;</p>
-              </div>
+              </button>
               <button
                 onClick={goToLessons}
                 className="rounded-[1.75rem] px-4 py-6 text-base leading-snug"
@@ -1735,7 +1750,7 @@ export default function SayAndItBecomes() {
       )}
 
       {/* INPUT */}
-      {step === "input" && (
+      {(step === "input" || step === "whispers") && (
         <div className="w-full max-w-md flex-1 flex flex-col justify-center">
           <h1 className="text-3xl leading-tight font-semibold mb-3" style={{ color: INK, fontFamily: "Georgia, 'Times New Roman', serif" }}>
             What's on your mind?
