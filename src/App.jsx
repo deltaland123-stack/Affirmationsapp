@@ -961,6 +961,17 @@ export default function SayAndItBecomes() {
     setMenuOpen(false);
     setCameFrom(step === "setup" ? "input" : step);
     stopLessonAudio();
+    // Always open Setup as a fresh, empty form.
+    setProfileName("");
+    setProfileGender("");
+    setProfileEmail("");
+    setFocusAreas(new Set());
+    setAboutText("");
+    setSelectedVoiceURI("");
+    setShowPasswordFields(false);
+    setNewPw("");
+    setConfirmPw("");
+    setPwMessage("");
     setStep("setup");
   }
   function goHome() {
@@ -969,6 +980,8 @@ export default function SayAndItBecomes() {
     setStep("landing");
   }
   function goToSignIn() {
+    setSigninEmail("");
+    setSigninPassword("");
     setSigninError("");
     setCameFrom("landing");
     stopLessonAudio();
@@ -1626,6 +1639,8 @@ export default function SayAndItBecomes() {
               type="button"
               onClick={() => {
                 setSignupError("");
+                setSigninEmail("");
+                setSigninPassword("");
                 setSigninError("");
                 setStep("signin");
               }}
@@ -2347,10 +2362,6 @@ export default function SayAndItBecomes() {
       {/* SETUP */}
       {step === "setup" && (
         <div className="w-full max-w-md flex-1 flex flex-col pb-10">
-          <button onClick={backFromSubpage} className="flex items-center gap-1.5 mb-6 text-sm font-semibold" style={{ color: MUTED }}>
-            <ArrowLeft size={16} />
-            Back
-          </button>
           <h1 className="text-2xl font-semibold mb-1" style={{ color: INK, fontFamily: "Georgia, 'Times New Roman', serif" }}>
             Setup
           </h1>
