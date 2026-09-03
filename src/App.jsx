@@ -942,7 +942,10 @@ export default function SayAndItBecomes() {
   }
 
   async function goToGallery() {
-    await saveToGallery(declaration, resultKind);
+    // Only save if this exact result isn't already in the gallery.
+    const current = declaration.trim();
+    const alreadySaved = gallery.some((item) => (item.text || "").trim() === current);
+    if (!alreadySaved) await saveToGallery(declaration, resultKind);
     setCameFrom("declaration");
     setStep("gallery");
   }
