@@ -584,10 +584,6 @@ export default function SayAndItBecomes() {
       setSignupError("Fill in all fields.");
       return;
     }
-    if (signupPassword.length < 6) {
-      setSignupError("Password should be at least 6 characters.");
-      return;
-    }
     if (signupPassword !== signupConfirmPassword) {
       setSignupError("Passwords don't match.");
       return;
@@ -1109,7 +1105,6 @@ export default function SayAndItBecomes() {
     if (!memberPassword || !memberConfirmPassword) {
       return { error: "Choose and confirm a password to create your account." };
     }
-    if (memberPassword.length < 6) return { error: "Password should be at least 6 characters." };
     if (memberPassword !== memberConfirmPassword) return { error: "Passwords don't match." };
 
     try {
@@ -1149,10 +1144,6 @@ export default function SayAndItBecomes() {
       setPwMessage("");
       if (!session) {
         setPwMessage("Sign in to change your password.");
-        return;
-      }
-      if (newPw.length < 6) {
-        setPwMessage("New password should be at least 6 characters.");
         return;
       }
       if (newPw !== confirmPw) {
