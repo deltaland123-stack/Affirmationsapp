@@ -1117,7 +1117,7 @@ export default function SayAndItBecomes() {
       if (!res.ok || !data.access_token) {
         const msg = data?.msg || data?.error_description || "";
         if (/already registered|already exists/i.test(msg) || data?.error_code === "user_already_exists") {
-          return { error: "This email is already registered.", alreadyExists: true };
+          return { error: "This email already exist, you can log in as a member.", alreadyExists: true };
         }
         return { error: msg || "Couldn't create your account." };
       }
