@@ -35,6 +35,8 @@ import {
   FileAudio,
   Share2,
   CreditCard,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 const ACCENT = "#E8532A";
@@ -168,6 +170,8 @@ export default function SayAndItBecomes() {
   // Setup membership payment (end of Setup page)
   const [memberPassword, setMemberPassword] = useState("");
   const [memberConfirmPassword, setMemberConfirmPassword] = useState("");
+  const [showMemberPw, setShowMemberPw] = useState(false);
+  const [showMemberConfirmPw, setShowMemberConfirmPw] = useState(false);
   const [payCard, setPayCard] = useState("");
   const [payExp, setPayExp] = useState("");
   const [payCvc, setPayCvc] = useState("");
@@ -187,6 +191,8 @@ export default function SayAndItBecomes() {
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [pwMessage, setPwMessage] = useState("");
   const [availableVoices, setAvailableVoices] = useState([]);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
@@ -396,6 +402,20 @@ export default function SayAndItBecomes() {
       setIsListening(false);
     }
   }
+
+  // Whatever path got us here (menu, a card, sign-in, Save profile, Subscribe,
+  // "New whisper", ...), the affirmation input / Universe Whispers screen
+  // always opens with an empty, fresh form.
+  useEffect(() => {
+    if (step === "input" || step === "whispers") {
+      setBelief("");
+      setDeclaration("");
+      setError("");
+      setMicError("");
+      setIsEditing(false);
+      setEditText("");
+    }
+  }, [step]);
 
   // ---- Session bootstrap ----
   useEffect(() => {
@@ -978,9 +998,13 @@ export default function SayAndItBecomes() {
     setShowPasswordFields(false);
     setNewPw("");
     setConfirmPw("");
+    setShowNewPw(false);
+    setShowConfirmPw(false);
     setPwMessage("");
     setMemberPassword("");
     setMemberConfirmPassword("");
+    setShowMemberPw(false);
+    setShowMemberConfirmPw(false);
     setPayCard("");
     setPayExp("");
     setPayCvc("");
@@ -1065,6 +1089,38 @@ export default function SayAndItBecomes() {
   }
 
   async function saveProfile() {
+    // An optional password change, folded into the single Save profile action.
+    if (newPw || confirmPw) {
+      setPwMessage("");
+      if (!session) {
+        setPwMessage("Sign in to change your password.");
+        return;
+      }
+      if (newPw.length < 6) {
+        setPwMessage("New password should be at least 6 characters.");
+        return;
+      }
+      if (newPw !== confirmPw) {
+        setPwMessage("New password and confirmation don't match.");
+        return;
+      }
+      try {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          method: "PUT",
+          headers: sbDataHeaders(session),
+          body: JSON.stringify({ password: newPw }),
+        });
+        if (!res.ok) {
+          const d = await res.json();
+          setPwMessage(d?.msg || "Couldn't update password.");
+          return;
+        }
+      } catch (e) {
+        setPwMessage("Something went wrong updating your password.");
+        return;
+      }
+    }
+
     if (session) {
       try {
         await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
@@ -1092,6 +1148,10 @@ export default function SayAndItBecomes() {
 
     // Head to the affirmation page and clear the entered details from the screen.
     setShowPasswordFields(false);
+    setNewPw("");
+    setConfirmPw("");
+    setCurrentPw("");
+    setPwMessage("");
     setProfileName("");
     setProfileGender("");
     setProfileEmail("");
@@ -1190,44 +1250,6 @@ export default function SayAndItBecomes() {
     setMemberPassword("");
     setMemberConfirmPassword("");
     setStep("input");
-  }
-
-  async function submitPasswordChange() {
-    setPwMessage("");
-    if (!newPw || !confirmPw) {
-      setPwMessage("Enter and confirm your new password.");
-      return;
-    }
-    if (newPw.length < 6) {
-      setPwMessage("New password should be at least 6 characters.");
-      return;
-    }
-    if (newPw !== confirmPw) {
-      setPwMessage("New password and confirmation don't match.");
-      return;
-    }
-    if (!session) {
-      setPwMessage("Sign in to change your password.");
-      return;
-    }
-    try {
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-        method: "PUT",
-        headers: sbDataHeaders(session),
-        body: JSON.stringify({ password: newPw }),
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        setPwMessage(d?.msg || "Couldn't update password.");
-        return;
-      }
-      setPwMessage("Password updated.");
-      setCurrentPw("");
-      setNewPw("");
-      setConfirmPw("");
-    } catch (e) {
-      setPwMessage("Something went wrong updating your password.");
-    }
   }
 
   // ---- Gallery helpers ----
@@ -2570,30 +2592,52 @@ export default function SayAndItBecomes() {
               </button>
               {showPasswordFields && (
                 <div className="flex flex-col gap-3 mt-3">
-                  <input
-                    type="password"
-                    value={newPw}
-                    onChange={(e) => setNewPw(e.target.value)}
-                    placeholder="New password"
-                    className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
-                    style={{ borderColor: "#EAEAEA", color: INK }}
-                  />
-                  <input
-                    type="password"
-                    value={confirmPw}
-                    onChange={(e) => setConfirmPw(e.target.value)}
-                    placeholder="Confirm new password"
-                    className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
-                    style={{ borderColor: "#EAEAEA", color: INK }}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showNewPw ? "text" : "password"}
+                      value={newPw}
+                      onChange={(e) => setNewPw(e.target.value)}
+                      placeholder="New password"
+                      className="w-full rounded-2xl p-3.5 pr-11 text-base outline-none border-2"
+                      style={{ borderColor: "#EAEAEA", color: INK }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPw((s) => !s)}
+                      aria-label={showNewPw ? "Hide password" : "Show password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
+                      style={{ color: MUTED }}
+                    >
+                      {showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPw ? "text" : "password"}
+                      value={confirmPw}
+                      onChange={(e) => setConfirmPw(e.target.value)}
+                      placeholder="Confirm new password"
+                      className="w-full rounded-2xl p-3.5 pr-11 text-base outline-none border-2"
+                      style={{ borderColor: "#EAEAEA", color: INK }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPw((s) => !s)}
+                      aria-label={showConfirmPw ? "Hide password" : "Show password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
+                      style={{ color: MUTED }}
+                    >
+                      {showConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                   {pwMessage && (
-                    <p className="text-xs" style={{ color: pwMessage === "Password updated." ? ACCENT : "#D64545" }}>
+                    <p className="text-xs" style={{ color: "#D64545" }}>
                       {pwMessage}
                     </p>
                   )}
-                  <button onClick={submitPasswordChange} className="rounded-2xl py-3 text-sm font-semibold" style={{ backgroundColor: "#F7F7F7", color: INK }}>
-                    Update password
-                  </button>
+                  <p className="text-xs" style={{ color: MUTED }}>
+                    Filled in, this is saved along with the rest of your profile when you tap Save profile below.
+                  </p>
                 </div>
               )}
             </div>
@@ -2764,22 +2808,44 @@ export default function SayAndItBecomes() {
                 <div className="flex flex-col gap-3">
                   {!session && (
                     <>
-                      <input
-                        type="password"
-                        value={memberPassword}
-                        onChange={(e) => setMemberPassword(e.target.value)}
-                        placeholder="Choose a password"
-                        className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
-                        style={{ borderColor: "#EAEAEA", color: INK }}
-                      />
-                      <input
-                        type="password"
-                        value={memberConfirmPassword}
-                        onChange={(e) => setMemberConfirmPassword(e.target.value)}
-                        placeholder="Confirm password"
-                        className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
-                        style={{ borderColor: "#EAEAEA", color: INK }}
-                      />
+                      <div className="relative">
+                        <input
+                          type={showMemberPw ? "text" : "password"}
+                          value={memberPassword}
+                          onChange={(e) => setMemberPassword(e.target.value)}
+                          placeholder="Choose a password"
+                          className="w-full rounded-2xl p-3.5 pr-11 text-base outline-none border-2"
+                          style={{ borderColor: "#EAEAEA", color: INK }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowMemberPw((s) => !s)}
+                          aria-label={showMemberPw ? "Hide password" : "Show password"}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
+                          style={{ color: MUTED }}
+                        >
+                          {showMemberPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={showMemberConfirmPw ? "text" : "password"}
+                          value={memberConfirmPassword}
+                          onChange={(e) => setMemberConfirmPassword(e.target.value)}
+                          placeholder="Confirm password"
+                          className="w-full rounded-2xl p-3.5 pr-11 text-base outline-none border-2"
+                          style={{ borderColor: "#EAEAEA", color: INK }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowMemberConfirmPw((s) => !s)}
+                          aria-label={showMemberConfirmPw ? "Hide password" : "Show password"}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
+                          style={{ color: MUTED }}
+                        >
+                          {showMemberConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
                       <p className="text-xs" style={{ color: MUTED }}>
                         We'll use your email above and this password to create your account.
                       </p>
