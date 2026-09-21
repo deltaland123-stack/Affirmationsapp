@@ -42,6 +42,7 @@ import {
 const ACCENT = "#E8532A";
 const INK = "#14181F";
 const MUTED = "#8A8F98";
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ElevenLabs premade voices offered in Setup — 4 male, 4 female. The `id` is the
 // ElevenLabs voice_id sent to /api/text-to-speech. All verified available on the
@@ -167,14 +168,17 @@ export default function SayAndItBecomes() {
   const [shareOpen, setShareOpen] = useState(false);
   const [upgradeNotice, setUpgradeNotice] = useState(false); // "members only" prompt for Play/Share/Delete
 
-  // Setup membership payment (end of Setup page)
+  // Setup account creation (under Email, guests only) + membership payment
   const [memberPassword, setMemberPassword] = useState("");
   const [memberConfirmPassword, setMemberConfirmPassword] = useState("");
   const [showMemberPw, setShowMemberPw] = useState(false);
   const [showMemberConfirmPw, setShowMemberConfirmPw] = useState(false);
+  const [accountError, setAccountError] = useState("");
+  const [accountAlreadyExists, setAccountAlreadyExists] = useState(false);
   const [payCard, setPayCard] = useState("");
   const [payExp, setPayExp] = useState("");
   const [payCvc, setPayCvc] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("card"); // card | paypal (paypal not wired up)
   const [paymentError, setPaymentError] = useState("");
   const [paymentLoading, setPaymentLoading] = useState(false);
 
@@ -1005,9 +1009,12 @@ export default function SayAndItBecomes() {
     setMemberConfirmPassword("");
     setShowMemberPw(false);
     setShowMemberConfirmPw(false);
+    setAccountError("");
+    setAccountAlreadyExists(false);
     setPayCard("");
     setPayExp("");
     setPayCvc("");
+    setPaymentMethod("card");
     setPaymentError("");
     setStep("setup");
   }
@@ -1016,8 +1023,8 @@ export default function SayAndItBecomes() {
     stopLessonAudio();
     setStep("landing");
   }
-  function goToSignIn() {
-    setSigninEmail("");
+  function goToSignIn(prefillEmail = "") {
+    setSigninEmail(prefillEmail);
     setSigninPassword("");
     setSigninError("");
     setCameFrom("landing");
@@ -1088,8 +1095,56 @@ export default function SayAndItBecomes() {
     });
   }
 
+  // Creates the account from the Setup email/password fields (below Email) if
+  // the user isn't signed in yet and has started filling them in. Returns
+  // { session } (existing, new, or null for "staying a local guest"), or
+  // { error, alreadyExists? } if creation is blocked — callers surface that
+  // via accountError instead of proceeding.
+  async function ensureAccount() {
+    if (session) return { session };
+    if (!memberPassword && !memberConfirmPassword) return { session: null };
+
+    const email = profileEmail.trim();
+    if (!email || !EMAIL_RE.test(email)) return { error: "Enter a valid email address." };
+    if (!memberPassword || !memberConfirmPassword) {
+      return { error: "Choose and confirm a password to create your account." };
+    }
+    if (memberPassword.length < 6) return { error: "Password should be at least 6 characters." };
+    if (memberPassword !== memberConfirmPassword) return { error: "Passwords don't match." };
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+        method: "POST",
+        headers: sbAuthHeaders(),
+        body: JSON.stringify({ email, password: memberPassword, data: { name: profileName.trim() } }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.access_token) {
+        const msg = data?.msg || data?.error_description || "";
+        if (/already registered|already exists/i.test(msg) || data?.error_code === "user_already_exists") {
+          return { error: "This email is already registered.", alreadyExists: true };
+        }
+        return { error: msg || "Couldn't create your account." };
+      }
+      const newSession = {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        userId: data.user?.id,
+        email: data.user?.email,
+      };
+      await persistSession(newSession);
+      return { session: newSession };
+    } catch (e) {
+      return { error: "Something went wrong creating your account." };
+    }
+  }
+
   async function saveProfile() {
-    // An optional password change, folded into the single Save profile action.
+    setAccountError("");
+    setAccountAlreadyExists(false);
+
+    // An optional password change for an already-signed-in account, folded
+    // into the single Save profile action.
     if (newPw || confirmPw) {
       setPwMessage("");
       if (!session) {
@@ -1121,14 +1176,23 @@ export default function SayAndItBecomes() {
       }
     }
 
-    if (session) {
+    // Register the account first if a guest chose email + password above.
+    const acct = await ensureAccount();
+    if (acct.error) {
+      setAccountError(acct.error);
+      setAccountAlreadyExists(!!acct.alreadyExists);
+      return;
+    }
+    const activeSession = acct.session;
+
+    if (activeSession) {
       try {
         await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
           method: "POST",
-          headers: { ...sbDataHeaders(session), Prefer: "resolution=merge-duplicates,return=representation" },
+          headers: { ...sbDataHeaders(activeSession), Prefer: "resolution=merge-duplicates,return=representation" },
           body: JSON.stringify([
             {
-              id: session.userId,
+              id: activeSession.userId,
               name: profileName,
               gender: profileGender,
               focus_areas: Array.from(focusAreas),
@@ -1152,6 +1216,10 @@ export default function SayAndItBecomes() {
     setConfirmPw("");
     setCurrentPw("");
     setPwMessage("");
+    setMemberPassword("");
+    setMemberConfirmPassword("");
+    setAccountError("");
+    setAccountAlreadyExists(false);
     setProfileName("");
     setProfileGender("");
     setProfileEmail("");
@@ -1163,60 +1231,30 @@ export default function SayAndItBecomes() {
   // Membership payment, at the end of Setup. There's no real payment
   // processor wired up (that would need a backend + a provider like Stripe),
   // so this simulates a successful charge once the card fields are filled in.
-  // It never stores card details anywhere. A guest (no session yet) is
-  // registered first, since membership must be tied to an account so a future
-  // sign-in can recognize it.
+  // It never stores card details anywhere. A guest with no account yet is
+  // registered first via ensureAccount(), since membership must be tied to an
+  // account so a future sign-in can recognize it.
   async function subscribeMembership() {
     setPaymentError("");
     if (!payCard.trim() || !payExp.trim() || !payCvc.trim()) {
       setPaymentError("Enter your card details.");
       return;
     }
-
-    let activeSession = session;
     setPaymentLoading(true);
 
+    const acct = await ensureAccount();
+    if (acct.error) {
+      setAccountError(acct.error);
+      setAccountAlreadyExists(!!acct.alreadyExists);
+      setPaymentError("Fix your account details above, then try again.");
+      setPaymentLoading(false);
+      return;
+    }
+    const activeSession = acct.session;
     if (!activeSession) {
-      const email = profileEmail.trim();
-      if (!email || !memberPassword || !memberConfirmPassword) {
-        setPaymentError("Enter your email and choose a password to create your account.");
-        setPaymentLoading(false);
-        return;
-      }
-      if (memberPassword.length < 6) {
-        setPaymentError("Password should be at least 6 characters.");
-        setPaymentLoading(false);
-        return;
-      }
-      if (memberPassword !== memberConfirmPassword) {
-        setPaymentError("Passwords don't match.");
-        setPaymentLoading(false);
-        return;
-      }
-      try {
-        const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-          method: "POST",
-          headers: sbAuthHeaders(),
-          body: JSON.stringify({ email, password: memberPassword, data: { name: profileName.trim() } }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.access_token) {
-          setPaymentError(data?.msg || data?.error_description || "Couldn't create your account.");
-          setPaymentLoading(false);
-          return;
-        }
-        activeSession = {
-          accessToken: data.access_token,
-          refreshToken: data.refresh_token,
-          userId: data.user?.id,
-          email: data.user?.email,
-        };
-        await persistSession(activeSession);
-      } catch (e) {
-        setPaymentError("Something went wrong creating your account.");
-        setPaymentLoading(false);
-        return;
-      }
+      setPaymentError("Enter your email and choose a password above to create your account.");
+      setPaymentLoading(false);
+      return;
     }
 
     try {
@@ -1249,6 +1287,8 @@ export default function SayAndItBecomes() {
     setPayCvc("");
     setMemberPassword("");
     setMemberConfirmPassword("");
+    setAccountError("");
+    setAccountAlreadyExists(false);
     setStep("input");
   }
 
@@ -1460,6 +1500,7 @@ export default function SayAndItBecomes() {
   const selectedCount = selectedIds.size;
   const firstName = profileName.trim().split(" ")[0] || "";
   const isWhisper = step === "whispers";
+  const emailInvalid = profileEmail.trim().length > 0 && !EMAIL_RE.test(profileEmail.trim());
 
   function renderMenuPanel() {
     return (
@@ -2570,21 +2611,107 @@ export default function SayAndItBecomes() {
               <input
                 type="email"
                 value={profileEmail}
-                onChange={(e) => setProfileEmail(e.target.value)}
+                onChange={(e) => {
+                  setProfileEmail(e.target.value);
+                  setAccountError("");
+                  setAccountAlreadyExists(false);
+                }}
                 disabled={!!session}
                 placeholder="you@example.com"
                 className="w-full rounded-2xl p-3.5 text-base outline-none border-2 transition-colors"
                 style={
                   session
                     ? { borderColor: "#EAEAEA", color: MUTED, backgroundColor: "#FAFAFA" }
-                    : { borderColor: profileEmail ? ACCENT : "#EAEAEA", color: INK }
+                    : { borderColor: emailInvalid ? "#D64545" : profileEmail ? ACCENT : "#EAEAEA", color: INK }
                 }
               />
-              <p className="text-xs mt-1.5" style={{ color: MUTED }}>
-                {session ? "This is your sign-in email." : "We'll use this to set up your account."}
+              <p className="text-xs mt-1.5" style={{ color: emailInvalid ? "#D64545" : MUTED }}>
+                {session
+                  ? "This is your sign-in email."
+                  : emailInvalid
+                  ? "Enter a valid email address."
+                  : "We'll use this to set up your account."}
               </p>
             </div>
 
+            {!session && (
+              <div>
+                <label className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: INK }}>
+                  <Lock size={14} style={{ color: MUTED }} />
+                  Password
+                </label>
+                <div className="flex flex-col gap-3">
+                  <div className="relative">
+                    <input
+                      type={showMemberPw ? "text" : "password"}
+                      value={memberPassword}
+                      onChange={(e) => {
+                        setMemberPassword(e.target.value);
+                        setAccountError("");
+                        setAccountAlreadyExists(false);
+                      }}
+                      placeholder="Choose a password"
+                      className="w-full rounded-2xl p-3.5 pr-11 text-base outline-none border-2"
+                      style={{ borderColor: "#EAEAEA", color: INK }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowMemberPw((s) => !s)}
+                      aria-label={showMemberPw ? "Hide password" : "Show password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
+                      style={{ color: MUTED }}
+                    >
+                      {showMemberPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showMemberConfirmPw ? "text" : "password"}
+                      value={memberConfirmPassword}
+                      onChange={(e) => {
+                        setMemberConfirmPassword(e.target.value);
+                        setAccountError("");
+                        setAccountAlreadyExists(false);
+                      }}
+                      placeholder="Confirm password"
+                      className="w-full rounded-2xl p-3.5 pr-11 text-base outline-none border-2"
+                      style={{ borderColor: "#EAEAEA", color: INK }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowMemberConfirmPw((s) => !s)}
+                      aria-label={showMemberConfirmPw ? "Hide password" : "Show password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
+                      style={{ color: MUTED }}
+                    >
+                      {showMemberConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  {accountError && (
+                    <div>
+                      <p className="text-xs" style={{ color: "#D64545" }}>
+                        {accountError}
+                      </p>
+                      {accountAlreadyExists && (
+                        <button
+                          type="button"
+                          onClick={() => goToSignIn(profileEmail.trim())}
+                          className="text-xs underline font-semibold mt-1"
+                          style={{ color: ACCENT }}
+                        >
+                          Log in instead
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-xs" style={{ color: MUTED }}>
+                    Optional — add a password to save your profile to an account instead of just this device.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {session && (
             <div>
               <button onClick={() => setShowPasswordFields((s) => !s)} className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: INK }}>
                 <Lock size={14} style={{ color: MUTED }} />
@@ -2641,6 +2768,7 @@ export default function SayAndItBecomes() {
                 </div>
               )}
             </div>
+            )}
 
             <div>
               <p className="text-sm font-semibold mb-1" style={{ color: INK }}>
@@ -2807,54 +2935,39 @@ export default function SayAndItBecomes() {
               ) : (
                 <div className="flex flex-col gap-3">
                   {!session && (
-                    <>
-                      <div className="relative">
-                        <input
-                          type={showMemberPw ? "text" : "password"}
-                          value={memberPassword}
-                          onChange={(e) => setMemberPassword(e.target.value)}
-                          placeholder="Choose a password"
-                          className="w-full rounded-2xl p-3.5 pr-11 text-base outline-none border-2"
-                          style={{ borderColor: "#EAEAEA", color: INK }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowMemberPw((s) => !s)}
-                          aria-label={showMemberPw ? "Hide password" : "Show password"}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
-                          style={{ color: MUTED }}
-                        >
-                          {showMemberPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <div className="relative">
-                        <input
-                          type={showMemberConfirmPw ? "text" : "password"}
-                          value={memberConfirmPassword}
-                          onChange={(e) => setMemberConfirmPassword(e.target.value)}
-                          placeholder="Confirm password"
-                          className="w-full rounded-2xl p-3.5 pr-11 text-base outline-none border-2"
-                          style={{ borderColor: "#EAEAEA", color: INK }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowMemberConfirmPw((s) => !s)}
-                          aria-label={showMemberConfirmPw ? "Hide password" : "Show password"}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
-                          style={{ color: MUTED }}
-                        >
-                          {showMemberConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <p className="text-xs" style={{ color: MUTED }}>
-                        We'll use your email above and this password to create your account.
-                      </p>
-                    </>
+                    <p className="text-xs" style={{ color: MUTED }}>
+                      Uses the email and password entered above to create your account.
+                    </p>
                   )}
-                  <label className="text-sm font-semibold flex items-center gap-1.5" style={{ color: INK }}>
-                    <CreditCard size={14} style={{ color: MUTED }} />
-                    Card
-                  </label>
+
+                  <p className="text-sm font-semibold" style={{ color: INK }}>
+                    Payment method
+                  </p>
+                  <div className="flex rounded-full p-1 w-fit" style={{ backgroundColor: "#F7F7F7" }}>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("card")}
+                      className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors"
+                      style={{
+                        backgroundColor: paymentMethod === "card" ? "#FFFFFF" : "transparent",
+                        color: paymentMethod === "card" ? INK : MUTED,
+                        boxShadow: paymentMethod === "card" ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+                      }}
+                    >
+                      <CreditCard size={14} />
+                      Card
+                    </button>
+                    <button
+                      type="button"
+                      disabled
+                      title="Coming soon"
+                      className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold opacity-40 cursor-not-allowed"
+                      style={{ color: MUTED }}
+                    >
+                      PayPal
+                    </button>
+                  </div>
+
                   <input
                     type="text"
                     inputMode="numeric"
