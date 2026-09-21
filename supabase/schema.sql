@@ -18,9 +18,14 @@ create table if not exists public.profiles (
   voice_uri     text        not null default '',
   reminder_on   boolean     not null default true,
   reminder_time text        not null default '08:00',
+  is_member     boolean     not null default false,  -- paid membership ($4.99/mo), set by the Setup payment step
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
+
+-- If the table already exists from an earlier run, add the column:
+alter table public.profiles
+  add column if not exists is_member boolean not null default false;
 
 -- ---------------------------------------------------------------------------
 -- affirmations : the user's saved declarations ("gallery")

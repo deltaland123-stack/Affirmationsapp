@@ -34,6 +34,7 @@ import {
   FileText,
   FileAudio,
   Share2,
+  CreditCard,
 } from "lucide-react";
 
 const ACCENT = "#E8532A";
@@ -160,9 +161,18 @@ export default function SayAndItBecomes() {
   const [shuffleOn, setShuffleOn] = useState(false);
   const [repeatCount, setRepeatCount] = useState(1);
   const [downloadNotice, setDownloadNotice] = useState("");
-  const [isPaidMember, setIsPaidMember] = useState(false); // member = registered + paid; no purchase flow yet, so this stays false until one exists
+  const [isPaidMember, setIsPaidMember] = useState(false); // member = registered + paid; read from profiles.is_member on login
   const [shareOpen, setShareOpen] = useState(false);
   const [upgradeNotice, setUpgradeNotice] = useState(false); // "members only" prompt for Play/Share/Delete
+
+  // Setup membership payment (end of Setup page)
+  const [memberPassword, setMemberPassword] = useState("");
+  const [memberConfirmPassword, setMemberConfirmPassword] = useState("");
+  const [payCard, setPayCard] = useState("");
+  const [payExp, setPayExp] = useState("");
+  const [payCvc, setPayCvc] = useState("");
+  const [paymentError, setPaymentError] = useState("");
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   // Setup / profile
   const [voicePref, setVoicePref] = useState("coach");
@@ -500,6 +510,7 @@ export default function SayAndItBecomes() {
         setSelectedVoiceURI(p.voice_uri || "");
         setReminderOn(p.reminder_on !== undefined && p.reminder_on !== null ? p.reminder_on : true);
         setReminderTime(p.reminder_time || "08:00");
+        setIsPaidMember(!!p.is_member);
       }
       setProfileEmail(sess.email || "");
     } catch (e) {
@@ -673,6 +684,7 @@ export default function SayAndItBecomes() {
     setStreak(0);
     setSaidToday(false);
     setSelectedIds(new Set());
+    setIsPaidMember(false);
   }
 
   async function saveStreakRemote(newCount, lastDate) {
@@ -967,6 +979,12 @@ export default function SayAndItBecomes() {
     setNewPw("");
     setConfirmPw("");
     setPwMessage("");
+    setMemberPassword("");
+    setMemberConfirmPassword("");
+    setPayCard("");
+    setPayExp("");
+    setPayCvc("");
+    setPaymentError("");
     setStep("setup");
   }
   function goHome() {
@@ -1079,6 +1097,98 @@ export default function SayAndItBecomes() {
     setProfileEmail("");
     setFocusAreas(new Set());
     setAboutText("");
+    setStep("input");
+  }
+
+  // Membership payment, at the end of Setup. There's no real payment
+  // processor wired up (that would need a backend + a provider like Stripe),
+  // so this simulates a successful charge once the card fields are filled in.
+  // It never stores card details anywhere. A guest (no session yet) is
+  // registered first, since membership must be tied to an account so a future
+  // sign-in can recognize it.
+  async function subscribeMembership() {
+    setPaymentError("");
+    if (!payCard.trim() || !payExp.trim() || !payCvc.trim()) {
+      setPaymentError("Enter your card details.");
+      return;
+    }
+
+    let activeSession = session;
+    setPaymentLoading(true);
+
+    if (!activeSession) {
+      const email = profileEmail.trim();
+      if (!email || !memberPassword || !memberConfirmPassword) {
+        setPaymentError("Enter your email and choose a password to create your account.");
+        setPaymentLoading(false);
+        return;
+      }
+      if (memberPassword.length < 6) {
+        setPaymentError("Password should be at least 6 characters.");
+        setPaymentLoading(false);
+        return;
+      }
+      if (memberPassword !== memberConfirmPassword) {
+        setPaymentError("Passwords don't match.");
+        setPaymentLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+          method: "POST",
+          headers: sbAuthHeaders(),
+          body: JSON.stringify({ email, password: memberPassword, data: { name: profileName.trim() } }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.access_token) {
+          setPaymentError(data?.msg || data?.error_description || "Couldn't create your account.");
+          setPaymentLoading(false);
+          return;
+        }
+        activeSession = {
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+          userId: data.user?.id,
+          email: data.user?.email,
+        };
+        await persistSession(activeSession);
+      } catch (e) {
+        setPaymentError("Something went wrong creating your account.");
+        setPaymentLoading(false);
+        return;
+      }
+    }
+
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+        method: "POST",
+        headers: { ...sbDataHeaders(activeSession), Prefer: "resolution=merge-duplicates" },
+        body: JSON.stringify([
+          {
+            id: activeSession.userId,
+            name: profileName,
+            gender: profileGender,
+            focus_areas: Array.from(focusAreas),
+            about: aboutText,
+            voice_uri: selectedVoiceURI,
+            reminder_on: reminderOn,
+            reminder_time: reminderTime,
+            is_member: true,
+          },
+        ]),
+      });
+    } catch (e) {
+      console.error("Could not save membership", e);
+    }
+
+    setIsPaidMember(true);
+    await loadUserData(activeSession); // pull profile, gallery and streak back into the app
+    setPaymentLoading(false);
+    setPayCard("");
+    setPayExp("");
+    setPayCvc("");
+    setMemberPassword("");
+    setMemberConfirmPassword("");
     setStep("input");
   }
 
@@ -2633,6 +2743,99 @@ export default function SayAndItBecomes() {
               >
                 Save profile
               </button>
+            </div>
+
+            <div className="pt-4 border-t" style={{ borderColor: "#F0F0F0" }}>
+              <p className="text-sm font-semibold mb-1" style={{ color: INK }}>
+                Membership — $4.99/month
+              </p>
+              <p className="text-xs mb-4" style={{ color: MUTED }}>
+                Unlock Play, Share and Delete on every saved affirmation and whisper.
+              </p>
+
+              {isPaidMember ? (
+                <div className="rounded-2xl p-3.5 flex items-center gap-2" style={{ backgroundColor: "#FDEDE7" }}>
+                  <CheckCircle2 size={18} style={{ color: ACCENT }} />
+                  <span className="text-sm font-semibold" style={{ color: INK }}>
+                    You're a member — full access unlocked.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {!session && (
+                    <>
+                      <input
+                        type="password"
+                        value={memberPassword}
+                        onChange={(e) => setMemberPassword(e.target.value)}
+                        placeholder="Choose a password"
+                        className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
+                        style={{ borderColor: "#EAEAEA", color: INK }}
+                      />
+                      <input
+                        type="password"
+                        value={memberConfirmPassword}
+                        onChange={(e) => setMemberConfirmPassword(e.target.value)}
+                        placeholder="Confirm password"
+                        className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
+                        style={{ borderColor: "#EAEAEA", color: INK }}
+                      />
+                      <p className="text-xs" style={{ color: MUTED }}>
+                        We'll use your email above and this password to create your account.
+                      </p>
+                    </>
+                  )}
+                  <label className="text-sm font-semibold flex items-center gap-1.5" style={{ color: INK }}>
+                    <CreditCard size={14} style={{ color: MUTED }} />
+                    Card
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={payCard}
+                    onChange={(e) => setPayCard(e.target.value)}
+                    placeholder="Card number"
+                    className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
+                    style={{ borderColor: "#EAEAEA", color: INK }}
+                  />
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={payExp}
+                      onChange={(e) => setPayExp(e.target.value)}
+                      placeholder="MM / YY"
+                      className="flex-1 rounded-2xl p-3.5 text-base outline-none border-2"
+                      style={{ borderColor: "#EAEAEA", color: INK }}
+                    />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={payCvc}
+                      onChange={(e) => setPayCvc(e.target.value)}
+                      placeholder="CVC"
+                      className="flex-1 rounded-2xl p-3.5 text-base outline-none border-2"
+                      style={{ borderColor: "#EAEAEA", color: INK }}
+                    />
+                  </div>
+                  {paymentError && (
+                    <p className="text-xs" style={{ color: "#D64545" }}>
+                      {paymentError}
+                    </p>
+                  )}
+                  <button
+                    onClick={subscribeMembership}
+                    disabled={paymentLoading}
+                    className="w-full rounded-2xl py-3.5 flex items-center justify-center gap-2 font-semibold text-sm disabled:opacity-60"
+                    style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
+                  >
+                    {paymentLoading ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
+                    {paymentLoading ? "Processing..." : "Subscribe — $4.99/month"}
+                  </button>
+                  <p className="text-xs" style={{ color: MUTED }}>
+                    Demo only — no real payment is processed and no card details are stored.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
