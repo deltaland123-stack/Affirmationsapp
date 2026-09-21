@@ -34,7 +34,6 @@ import {
   FileText,
   FileAudio,
   Share2,
-  CreditCard,
 } from "lucide-react";
 
 const ACCENT = "#E8532A";
@@ -161,13 +160,9 @@ export default function SayAndItBecomes() {
   const [shuffleOn, setShuffleOn] = useState(false);
   const [repeatCount, setRepeatCount] = useState(1);
   const [downloadNotice, setDownloadNotice] = useState("");
-  const [isPaidMember, setIsPaidMember] = useState(false);
+  const [isPaidMember, setIsPaidMember] = useState(false); // member = registered + paid; no purchase flow yet, so this stays false until one exists
   const [shareOpen, setShareOpen] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [paywallPlan, setPaywallPlan] = useState("trial"); // trial | annual
-  const [payCard, setPayCard] = useState("");
-  const [payExp, setPayExp] = useState("");
-  const [payCvc, setPayCvc] = useState("");
+  const [upgradeNotice, setUpgradeNotice] = useState(false); // "members only" prompt for Play/Share/Delete
 
   // Setup / profile
   const [voicePref, setVoicePref] = useState("coach");
@@ -1287,23 +1282,14 @@ export default function SayAndItBecomes() {
     setTimeout(() => setDownloadNotice(""), 4000);
   }
 
-  function handleShareClick() {
-    if (!isPaidMember) {
-      setShowPaywall(true);
-      return;
+  // Members (registered + paid) get full access. Non-members trying Play,
+  // Share or Delete in the gallery see an "Upgrade now" prompt instead.
+  function requireMembership(action) {
+    if (isPaidMember) {
+      action();
+    } else {
+      setUpgradeNotice(true);
     }
-    setShareOpen((s) => !s);
-  }
-
-  function subscribeMembership() {
-    // No payment processor is connected yet. In the full app this is where a
-    // subscription would be created (e.g. Stripe) before Share is unlocked.
-    setIsPaidMember(true);
-    setShowPaywall(false);
-    setShareOpen(true);
-    setPayCard("");
-    setPayExp("");
-    setPayCvc("");
   }
 
   function dateLabel(iso) {
@@ -2145,10 +2131,18 @@ export default function SayAndItBecomes() {
       {/* GALLERY */}
       {step === "gallery" && (
         <div className="w-full max-w-md flex-1 flex flex-col">
-          <div className="flex items-center mb-6">
+          <div className="flex items-center justify-between mb-6">
             <button onClick={backFromSubpage} className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: MUTED }}>
               <ArrowLeft size={16} />
               Back
+            </button>
+            <button
+              onClick={startOver}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold"
+              style={{ backgroundColor: "#F7F7F7", color: INK }}
+            >
+              <Sparkles size={14} style={{ color: ACCENT }} />
+              Start another affirmation
             </button>
           </div>
 
@@ -2177,13 +2171,33 @@ export default function SayAndItBecomes() {
                 </div>
               ) : (
                 <div className="w-full flex flex-col gap-2">
+                  {upgradeNotice && (
+                    <div className="w-full rounded-2xl p-3 flex items-center justify-between gap-2 flex-wrap" style={{ backgroundColor: "#FDF3ED" }}>
+                      <span className="text-xs" style={{ color: "#9A5230" }}>
+                        Members only — upgrade to unlock Play, Share and Delete.
+                      </span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={goToSignUp}
+                          className="rounded-full px-3 py-1.5 text-xs font-semibold"
+                          style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
+                        >
+                          Upgrade now
+                        </button>
+                        <button onClick={() => setUpgradeNotice(false)} aria-label="Dismiss" className="p-1" style={{ color: "#9A5230" }}>
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={playSelected}
+                      onClick={() => requireMembership(playSelected)}
                       className="flex-1 flex items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold"
-                      style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
+                      style={{ backgroundColor: isPaidMember ? ACCENT : "#EAEAEA", color: isPaidMember ? "#FFFFFF" : MUTED }}
                     >
-                      {isPlayingSequence ? <Square size={14} fill="#FFFFFF" /> : <Play size={14} fill="#FFFFFF" />}
+                      {!isPaidMember && <Lock size={12} />}
+                      {isPlayingSequence ? <Square size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
                       {isPlayingSequence ? "Stop" : `Play (${selectedCount})`}
                     </button>
                     <button
@@ -2209,14 +2223,23 @@ export default function SayAndItBecomes() {
                     </select>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <button onClick={handleShareClick} className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold" style={{ backgroundColor: "#FFFFFF", color: INK }}>
+                    <button
+                      onClick={() => requireMembership(() => setShareOpen((s) => !s))}
+                      className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold"
+                      style={{ backgroundColor: "#FFFFFF", color: isPaidMember ? INK : MUTED, opacity: isPaidMember ? 1 : 0.55 }}
+                    >
                       <Share2 size={14} />
                       Share
-                      {!isPaidMember && <Lock size={12} style={{ color: MUTED }} />}
+                      {!isPaidMember && <Lock size={12} />}
                     </button>
-                    <button onClick={() => setConfirmDelete(true)} className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold" style={{ backgroundColor: "#FFFFFF", color: "#D64545" }}>
+                    <button
+                      onClick={() => requireMembership(() => setConfirmDelete(true))}
+                      className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold"
+                      style={{ backgroundColor: "#FFFFFF", color: isPaidMember ? "#D64545" : MUTED, opacity: isPaidMember ? 1 : 0.55 }}
+                    >
                       <Trash2 size={14} />
                       Delete
+                      {!isPaidMember && <Lock size={12} />}
                     </button>
                   </div>
                   {isPaidMember && shareOpen && (
@@ -2636,115 +2659,6 @@ export default function SayAndItBecomes() {
         </div>
       )}
 
-      {/* MEMBERSHIP PAYWALL */}
-      {showPaywall && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-          style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
-          onClick={() => setShowPaywall(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-3xl p-6 max-h-[90vh] overflow-y-auto"
-            style={{ backgroundColor: "#FFFFFF" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Sparkles size={18} style={{ color: ACCENT }} />
-                <h2 className="text-lg font-semibold" style={{ color: INK, fontFamily: "Georgia, 'Times New Roman', serif" }}>
-                  Say &amp; It Becomes Membership
-                </h2>
-              </div>
-              <button onClick={() => setShowPaywall(false)} className="p-1" style={{ color: MUTED }}>
-                <X size={18} />
-              </button>
-            </div>
-            <p className="text-sm mb-5" style={{ color: MUTED }}>
-              Sharing your affirmations is a members-only feature.
-            </p>
-
-            <div className="flex flex-col gap-3 mb-4">
-              <button
-                type="button"
-                onClick={() => setPaywallPlan("trial")}
-                className="w-full rounded-2xl p-4 text-left border-2 flex items-start gap-3"
-                style={{ borderColor: paywallPlan === "trial" ? ACCENT : "#EAEAEA" }}
-              >
-                {paywallPlan === "trial" ? (
-                  <CheckCircle2 size={20} style={{ color: ACCENT }} />
-                ) : (
-                  <Circle size={20} style={{ color: MUTED }} />
-                )}
-                <span className="text-sm font-semibold" style={{ color: INK }}>
-                  Starting your 3 days free trial
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaywallPlan("annual")}
-                className="w-full rounded-2xl p-4 text-left border-2 flex items-start gap-3"
-                style={{ borderColor: paywallPlan === "annual" ? ACCENT : "#EAEAEA" }}
-              >
-                {paywallPlan === "annual" ? (
-                  <CheckCircle2 size={20} style={{ color: ACCENT }} />
-                ) : (
-                  <Circle size={20} style={{ color: MUTED }} />
-                )}
-                <span className="text-sm font-semibold" style={{ color: INK }}>
-                  Start today at $75.70/year (includes tax of $81.71)
-                </span>
-              </button>
-            </div>
-
-            <p className="text-sm mb-5" style={{ color: MUTED }}>
-              Cancel anytime
-            </p>
-
-            <div className="flex flex-col gap-3 mb-5">
-              <label className="text-sm font-semibold flex items-center gap-1.5" style={{ color: INK }}>
-                <CreditCard size={14} style={{ color: MUTED }} />
-                Visa
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={payCard}
-                onChange={(e) => setPayCard(e.target.value)}
-                placeholder="Card number"
-                className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
-                style={{ borderColor: "#EAEAEA", color: INK }}
-              />
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={payExp}
-                  onChange={(e) => setPayExp(e.target.value)}
-                  placeholder="MM / YY"
-                  className="flex-1 rounded-2xl p-3.5 text-base outline-none border-2"
-                  style={{ borderColor: "#EAEAEA", color: INK }}
-                />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={payCvc}
-                  onChange={(e) => setPayCvc(e.target.value)}
-                  placeholder="CVC"
-                  className="flex-1 rounded-2xl p-3.5 text-base outline-none border-2"
-                  style={{ borderColor: "#EAEAEA", color: INK }}
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={subscribeMembership}
-              className="w-full rounded-2xl py-4 flex items-center justify-center gap-2 font-semibold text-base"
-              style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
-            >
-              Subscribe
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
