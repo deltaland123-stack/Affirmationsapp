@@ -127,7 +127,7 @@ const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtydGl4dWRrb29qYmh5cHlwanF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4NzY4NDUsImV4cCI6MjEwMzQ1Mjg0NX0.3-Bx-JlBjuYDduSyBoXtUvVTfJEyGU1a4dRlOretEWA";
 
 export default function SayAndItBecomes() {
-  const [step, setStep] = useState("landing"); // landing | signup | signin | whisperName | input | whispers | loading | declaration | gallery | setup | loggedOut | lessons
+  const [step, setStep] = useState("landing"); // landing | signup | signin | whisperName | input | whispers | loading | declaration | gallery | setup | lessons
   const [belief, setBelief] = useState("");
   const [declaration, setDeclaration] = useState("");
   const [error, setError] = useState("");
@@ -648,7 +648,7 @@ export default function SayAndItBecomes() {
   async function performLogout() {
     setMenuOpen(false);
     stopLessonAudio();
-    setStep("loggedOut");
+    setStep("landing");
     // Revoke the session on Supabase too, not just locally.
     if (session?.accessToken) {
       try {
@@ -1417,8 +1417,8 @@ export default function SayAndItBecomes() {
       className="w-full min-h-screen flex flex-col items-center px-6 py-10 font-sans"
       onClick={() => menuOpen && setMenuOpen(false)}
     >
-      {/* Header — hidden on the landing / name / logged-out screens */}
-      {step !== "loggedOut" && step !== "landing" && step !== "whisperName" && (
+      {/* Header — hidden on the landing / name screens */}
+      {step !== "landing" && step !== "whisperName" && (
       <div className="w-full max-w-md flex items-center justify-between mb-10 relative">
         <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: ACCENT }}>
           Say &amp; It Becomes
@@ -2639,26 +2639,6 @@ export default function SayAndItBecomes() {
       )}
 
       {/* LOGGED OUT */}
-      {step === "loggedOut" && (
-        <div className="w-full max-w-md flex-1 flex flex-col justify-center items-center text-center">
-          <p className="text-sm font-semibold tracking-wide mb-8" style={{ color: ACCENT }}>
-            Say it, &amp; it becomes
-          </p>
-          <LogOut size={28} style={{ color: "#D8D8D8" }} />
-          <h1 className="text-xl font-semibold mt-4 mb-6" style={{ color: INK, fontFamily: "Georgia, 'Times New Roman', serif" }}>
-            You just logged out
-          </h1>
-          <button
-            onClick={goHome}
-            className="rounded-2xl px-6 py-3.5 flex items-center gap-2 font-semibold text-sm"
-            style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
-          >
-            <LogIn size={16} />
-            Login
-          </button>
-        </div>
-      )}
-
     </div>
   );
 }
