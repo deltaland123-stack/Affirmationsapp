@@ -580,7 +580,7 @@ export default function SayAndItBecomes() {
   // ---- Auth actions ----
   async function signUp() {
     setSignupError("");
-    if (!signupName.trim() || !signupEmail.trim() || !signupPassword || !signupConfirmPassword) {
+    if (!signupEmail.trim() || !signupPassword || !signupConfirmPassword) {
       setSignupError("Fill in all fields.");
       return;
     }
