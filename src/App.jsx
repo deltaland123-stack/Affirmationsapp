@@ -2908,16 +2908,6 @@ export default function SayAndItBecomes() {
             )}
 
             <div className="pt-4 border-t" style={{ borderColor: "#F0F0F0" }}>
-              <button
-                onClick={saveProfile}
-                className="w-full rounded-2xl py-3.5 flex items-center justify-center gap-2 font-semibold text-sm"
-                style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
-              >
-                Save profile
-              </button>
-            </div>
-
-            <div className="pt-4 border-t" style={{ borderColor: "#F0F0F0" }}>
               <p className="text-sm font-semibold mb-1" style={{ color: INK }}>
                 Membership — $4.99/month
               </p>
@@ -2926,11 +2916,20 @@ export default function SayAndItBecomes() {
               </p>
 
               {isPaidMember ? (
-                <div className="rounded-2xl p-3.5 flex items-center gap-2" style={{ backgroundColor: "#FDEDE7" }}>
-                  <CheckCircle2 size={18} style={{ color: ACCENT }} />
-                  <span className="text-sm font-semibold" style={{ color: INK }}>
-                    You're a member — full access unlocked.
-                  </span>
+                <div className="flex flex-col gap-3">
+                  <div className="rounded-2xl p-3.5 flex items-center gap-2" style={{ backgroundColor: "#FDEDE7" }}>
+                    <CheckCircle2 size={18} style={{ color: ACCENT }} />
+                    <span className="text-sm font-semibold" style={{ color: INK }}>
+                      You're a member — full access unlocked.
+                    </span>
+                  </div>
+                  <button
+                    onClick={saveProfile}
+                    className="w-full rounded-2xl py-3.5 flex items-center justify-center gap-2 font-semibold text-sm"
+                    style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
+                  >
+                    Save profile
+                  </button>
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
