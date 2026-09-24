@@ -695,10 +695,11 @@ export default function SayAndItBecomes() {
         openSetup(); // Setup always opens blank, regardless of entry point.
       } else {
         setProfileName(signupName.trim());
-        setSignupError("Account created — check your email to confirm, then sign in.");
-        setStep("signin");
+        goToSignIn(); // Sign in always opens blank, regardless of entry point.
+        setSigninError("Account created — check your email to confirm, then sign in.");
       }
     } catch (e) {
+      console.error("Sign up failed:", e);
       setSignupError("Something went wrong creating your account.");
     }
     setAuthLoading(false);
@@ -1258,6 +1259,7 @@ export default function SayAndItBecomes() {
       await persistSession(newSession);
       return { session: newSession };
     } catch (e) {
+      console.error("Account creation failed:", e);
       return { error: "Something went wrong creating your account." };
     }
   }
@@ -1982,10 +1984,7 @@ export default function SayAndItBecomes() {
               type="button"
               onClick={() => {
                 setSignupError("");
-                setSigninEmail("");
-                setSigninPassword("");
-                setSigninError("");
-                setStep("signin");
+                goToSignIn();
               }}
               className="underline font-semibold"
               style={{ color: ACCENT }}
@@ -2765,7 +2764,7 @@ export default function SayAndItBecomes() {
                 onChange={(e) => setProfileName(e.target.value)}
                 placeholder="Your name"
                 className="w-full rounded-2xl p-3.5 text-base outline-none border-2 transition-colors"
-                style={{ borderColor: profileName ? ACCENT : "#EAEAEA", color: INK }}
+                style={{ borderColor: "#EAEAEA", color: INK }}
               />
             </div>
 
@@ -2810,7 +2809,7 @@ export default function SayAndItBecomes() {
                 style={
                   session
                     ? { borderColor: "#EAEAEA", color: MUTED, backgroundColor: "#FAFAFA" }
-                    : { borderColor: emailInvalid ? "#D64545" : profileEmail ? ACCENT : "#EAEAEA", color: INK }
+                    : { borderColor: emailInvalid ? "#D64545" : "#EAEAEA", color: INK }
                 }
               />
               <p className="text-xs mt-1.5" style={{ color: emailInvalid ? "#D64545" : MUTED }}>
