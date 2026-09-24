@@ -135,21 +135,6 @@ function toUniverseWhisper(text, name) {
   return t;
 }
 
-// Opens a regular (first-person "I am") affirmation with the reader's name,
-// without changing person. Used for the Daily Affirmation flow when a
-// non-member was asked "What should I call you?" first.
-function prependName(text, name) {
-  const raw = (name || "").trim();
-  if (!raw) return text;
-  const who = raw.charAt(0).toUpperCase() + raw.slice(1);
-  let t = text.replace(/^today,\s*/i, "");
-  // Don't lowercase a standalone "I" (the pronoun) — only ordinary words.
-  if (!/^I(['’ ]|$)/.test(t)) {
-    t = t.charAt(0).toLowerCase() + t.slice(1);
-  }
-  return `${who}, ${t}`;
-}
-
 function GoogleIcon({ size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
@@ -188,7 +173,6 @@ export default function SayAndItBecomes() {
   const [error, setError] = useState("");
   const [whisperName, setWhisperName] = useState("");
   const [namePromptTarget, setNamePromptTarget] = useState("whispers"); // where Next on "What should I call you?" goes: "whispers" | "input"
-  const [affirmationNamed, setAffirmationNamed] = useState(false); // true when this Affirmation visit came through the name prompt
   const [resultKind, setResultKind] = useState("affirmation"); // "affirmation" | "whisper" — source of the current declaration
   const [quoteOrder, setQuoteOrder] = useState(() => shuffledIndices(POWERFUL_QUOTES.length));
   const [quotePos, setQuotePos] = useState(0);
@@ -760,7 +744,6 @@ export default function SayAndItBecomes() {
       };
       await persistSession(newSession);
       await loadUserData(newSession);
-      setAffirmationNamed(false);
       setStep("input");
     } catch (e) {
       setSigninError("Something went wrong signing in.");
@@ -797,7 +780,6 @@ export default function SayAndItBecomes() {
     setSaidToday(false);
     setSelectedIds(new Set());
     setIsPaidMember(false);
-    setAffirmationNamed(false);
   }
 
   async function saveStreakRemote(newCount, lastDate) {
@@ -862,11 +844,7 @@ export default function SayAndItBecomes() {
     }
 
     let finalText = text.replace(/^["']|["']$/g, "");
-    if (asWhisper) {
-      finalText = toUniverseWhisper(finalText, whisperName.trim() || firstName);
-    } else if (affirmationNamed) {
-      finalText = prependName(finalText, whisperName.trim() || firstName);
-    }
+    if (asWhisper) finalText = toUniverseWhisper(finalText, whisperName.trim() || firstName);
     setResultKind(asWhisper ? "whisper" : "affirmation");
     setDeclaration(finalText);
     setStep("declaration");
@@ -1179,10 +1157,10 @@ export default function SayAndItBecomes() {
   }
 
   // Next on the name prompt, when it was opened for the Daily Affirmation flow.
+  // The name is used for the header greeting only — not added to the affirmation text.
   function goToInputWithName() {
     const wn = whisperName.trim();
     if (wn) setProfileName(wn.charAt(0).toUpperCase() + wn.slice(1));
-    setAffirmationNamed(true);
     setBelief("");
     setDeclaration("");
     setError("");
@@ -1227,7 +1205,6 @@ export default function SayAndItBecomes() {
 
   function startOver() {
     stopLessonAudio();
-    setAffirmationNamed(false);
     setStep("input");
     setBelief("");
     setDeclaration("");
@@ -1629,7 +1606,12 @@ export default function SayAndItBecomes() {
     return `${datePart} · ${timePart}`;
   }
   function groupedGallery() {
-    if (!isPaidMember) return []; // non-members see the gallery as blank
+    if (!isPaidMember) {
+      // Non-members only get a preview: their single most recent affirmation
+      // or whisper (gallery is kept newest-first), not the full history.
+      const latest = gallery[0];
+      return latest ? [{ label: dateLabel(latest.createdAt), items: [latest] }] : [];
+    }
     const groups = [];
     gallery.forEach((item) => {
       const label = dateLabel(item.createdAt);
@@ -2528,9 +2510,11 @@ export default function SayAndItBecomes() {
             Your gallery
           </h1>
           <p className="text-sm mb-4" style={{ color: MUTED }}>
-            {!isPaidMember || gallery.length === 0
+            {gallery.length === 0
               ? "Nothing archived yet."
-              : "Tap one or more to select, then play, shuffle, download, or delete."}
+              : isPaidMember
+              ? "Tap one or more to select, then play, shuffle, download, or delete."
+              : "Your most recent result. Become a member to see your full gallery."}
           </p>
 
           {selectedCount > 0 && (
@@ -2644,7 +2628,7 @@ export default function SayAndItBecomes() {
             </div>
           )}
 
-          {!isPaidMember || gallery.length === 0 ? (
+          {gallery.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center">
               <BookOpen size={32} style={{ color: "#D8D8D8" }} />
               <p className="text-sm mt-3" style={{ color: MUTED }}>
