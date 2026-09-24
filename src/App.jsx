@@ -684,7 +684,6 @@ export default function SayAndItBecomes() {
         setAuthLoading(false);
         return;
       }
-      setProfileName(signupName.trim());
       if (data.access_token) {
         const newSession = {
           accessToken: data.access_token,
@@ -693,9 +692,9 @@ export default function SayAndItBecomes() {
           email: data.user?.email,
         };
         await persistSession(newSession);
-        setProfileEmail(newSession.email || "");
-        setStep("setup");
+        openSetup(); // Setup always opens blank, regardless of entry point.
       } else {
+        setProfileName(signupName.trim());
         setSignupError("Account created — check your email to confirm, then sign in.");
         setStep("signin");
       }
@@ -727,13 +726,11 @@ export default function SayAndItBecomes() {
       });
       const data = await res.json();
       if (!res.ok) {
-        // Credentials don't match anything on record — carry the email over and
-        // send them to Setup to finish creating their account.
-        setProfileEmail(signinEmail.trim());
+        // Credentials don't match anything on record — send them to Setup
+        // (always blank, per the always-fresh rule) to create their account.
         setSigninError("");
         setAuthLoading(false);
-        setCameFrom("landing");
-        setStep("setup");
+        openSetup();
         return;
       }
       const newSession = {
