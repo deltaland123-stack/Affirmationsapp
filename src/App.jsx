@@ -1629,6 +1629,7 @@ export default function SayAndItBecomes() {
     return `${datePart} · ${timePart}`;
   }
   function groupedGallery() {
+    if (!isPaidMember) return []; // non-members see the gallery as blank
     const groups = [];
     gallery.forEach((item) => {
       const label = dateLabel(item.createdAt);
@@ -2527,7 +2528,9 @@ export default function SayAndItBecomes() {
             Your gallery
           </h1>
           <p className="text-sm mb-4" style={{ color: MUTED }}>
-            {gallery.length === 0 ? "Nothing archived yet." : "Tap one or more to select, then play, shuffle, download, or delete."}
+            {!isPaidMember || gallery.length === 0
+              ? "Nothing archived yet."
+              : "Tap one or more to select, then play, shuffle, download, or delete."}
           </p>
 
           {selectedCount > 0 && (
@@ -2641,7 +2644,7 @@ export default function SayAndItBecomes() {
             </div>
           )}
 
-          {gallery.length === 0 ? (
+          {!isPaidMember || gallery.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center">
               <BookOpen size={32} style={{ color: "#D8D8D8" }} />
               <p className="text-sm mt-3" style={{ color: MUTED }}>
