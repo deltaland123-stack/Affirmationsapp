@@ -499,6 +499,33 @@ export default function SayAndItBecomes() {
   // ---- Session bootstrap ----
   useEffect(() => {
     async function bootstrap() {
+      // Finish a Google/Apple/Facebook sign-in: Supabase redirects back here
+      // with the session in the URL hash (#access_token=...&refresh_token=...).
+      if (window.location.hash && window.location.hash.includes("access_token")) {
+        const params = new URLSearchParams(window.location.hash.slice(1));
+        const accessToken = params.get("access_token");
+        const refreshToken = params.get("refresh_token");
+        // Strip the tokens out of the URL either way so a refresh can't replay them.
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+        if (accessToken) {
+          try {
+            const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+              headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${accessToken}` },
+            });
+            const user = await res.json();
+            if (res.ok && user?.id) {
+              const newSession = { accessToken, refreshToken, userId: user.id, email: user.email };
+              await persistSession(newSession);
+              await loadUserData(newSession);
+              setStep("input");
+              return;
+            }
+          } catch (e) {
+            console.error("Could not complete social sign-in", e);
+          }
+        }
+      }
+
       try {
         const raw = localStorage.getItem("supabase-session");
         if (raw) {
