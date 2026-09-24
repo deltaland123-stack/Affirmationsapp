@@ -1732,7 +1732,7 @@ export default function SayAndItBecomes() {
               </span>
             </div>
           )}
-          {firstName && (
+          {firstName && step !== "signin" && (
             <span className="text-sm font-semibold" style={{ color: INK }}>
               Hi, {firstName}
             </span>
