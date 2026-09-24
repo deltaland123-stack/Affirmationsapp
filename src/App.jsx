@@ -667,6 +667,11 @@ export default function SayAndItBecomes() {
       setSignupError("Please agree to the Terms & Conditions to continue.");
       return;
     }
+    setPaymentError("");
+    if (!payCard.trim() || !payExp.trim() || !payCvc.trim()) {
+      setPaymentError("Enter your card details.");
+      return;
+    }
     setAuthLoading(true);
     try {
       const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
@@ -692,6 +697,21 @@ export default function SayAndItBecomes() {
           email: data.user?.email,
         };
         await persistSession(newSession);
+        // The payment plan is part of sign up now — mark membership right away.
+        // No real payment processor is connected; see the Payment plan note.
+        try {
+          await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+            method: "POST",
+            headers: { ...sbDataHeaders(newSession), Prefer: "resolution=merge-duplicates" },
+            body: JSON.stringify([{ id: newSession.userId, name: signupName.trim(), is_member: true }]),
+          });
+        } catch (e) {
+          console.error("Could not save membership", e);
+        }
+        setIsPaidMember(true);
+        setPayCard("");
+        setPayExp("");
+        setPayCvc("");
         openSetup(); // Setup always opens blank, regardless of entry point.
       } else {
         setProfileName(signupName.trim());
@@ -1105,6 +1125,11 @@ export default function SayAndItBecomes() {
     setSignupError("");
     setSignupAgreed(false);
     setSignupName("");
+    setPayCard("");
+    setPayExp("");
+    setPayCvc("");
+    setPaymentMethod("card");
+    setPaymentError("");
     setCameFrom("landing");
     stopLessonAudio();
     setStep("signup");
@@ -2069,6 +2094,83 @@ export default function SayAndItBecomes() {
                 .
               </span>
             </label>
+
+            <div className="pt-4 border-t" style={{ borderColor: "#F0F0F0" }}>
+              <p className="text-sm font-semibold mb-1" style={{ color: INK }}>
+                Payment plan — $4.99/month
+              </p>
+              <p className="text-xs mb-4" style={{ color: MUTED }}>
+                Unlock Play, Share and Delete on every saved affirmation and whisper.
+              </p>
+
+              <p className="text-sm font-semibold mb-2" style={{ color: INK }}>
+                Payment method
+              </p>
+              <div className="flex rounded-full p-1 w-fit mb-3" style={{ backgroundColor: "#F7F7F7" }}>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("card")}
+                  className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors"
+                  style={{
+                    backgroundColor: paymentMethod === "card" ? "#FFFFFF" : "transparent",
+                    color: paymentMethod === "card" ? INK : MUTED,
+                    boxShadow: paymentMethod === "card" ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+                  }}
+                >
+                  <CreditCard size={14} />
+                  Card
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  title="Coming soon"
+                  className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold opacity-40 cursor-not-allowed"
+                  style={{ color: MUTED }}
+                >
+                  PayPal
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={payCard}
+                  onChange={(e) => setPayCard(e.target.value)}
+                  placeholder="Card number"
+                  className="w-full rounded-2xl p-3.5 text-base outline-none border-2"
+                  style={{ borderColor: "#EAEAEA", color: INK }}
+                />
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={payExp}
+                    onChange={(e) => setPayExp(e.target.value)}
+                    placeholder="MM / YY"
+                    className="flex-1 rounded-2xl p-3.5 text-base outline-none border-2"
+                    style={{ borderColor: "#EAEAEA", color: INK }}
+                  />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={payCvc}
+                    onChange={(e) => setPayCvc(e.target.value)}
+                    placeholder="CVC"
+                    className="flex-1 rounded-2xl p-3.5 text-base outline-none border-2"
+                    style={{ borderColor: "#EAEAEA", color: INK }}
+                  />
+                </div>
+                {paymentError && (
+                  <p className="text-xs" style={{ color: "#D64545" }}>
+                    {paymentError}
+                  </p>
+                )}
+                <p className="text-xs" style={{ color: MUTED }}>
+                  Demo only — no real payment is processed and no card details are stored.
+                </p>
+              </div>
+            </div>
+
             {signupError && (
               <p className="text-sm" style={{ color: "#D64545" }}>
                 {signupError}
