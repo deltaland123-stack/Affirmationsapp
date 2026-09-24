@@ -58,6 +58,42 @@ const ELEVENLABS_VOICES = [
   { id: "XrExE9yKIg1WjnnlVkGX", label: "Matilda — warm, friendly (female)" },
 ];
 
+// Brian — deep, calm (male). Fixed voice for the Powerful Quotes slideshow.
+const QUOTES_VOICE_ID = "nPczCjzI2devNBz1zQrb";
+
+const POWERFUL_QUOTES = [
+  "You are stronger than the moment you are facing. Keep moving. Better days are being built one step at a time.",
+  "Your past may explain where you came from, but it does not decide where you are going.",
+  "Believe in the possibility of something better. Then take one small action that moves you toward it.",
+  "You do not need to see the entire road. You only need enough courage to take the next step.",
+  "Every morning is another opportunity to think bigger, live better, and become more of who you were meant to be.",
+  "Do not underestimate what can happen when hope meets persistence. Small steps can create extraordinary change.",
+  "You have survived difficult days before. This day does not have to define you. Keep going.",
+  "Your future is not waiting for you to become perfect. It is waiting for you to begin.",
+  "There is still more life to experience, more people to love, more places to see, and more dreams to pursue.",
+  "Protect your hope. Feed your mind with possibility, surround yourself with what lifts you, and keep moving forward.",
+  "You are capable of more than fear tells you and closer to progress than doubt makes you believe.",
+  "Some seasons are about planting, some are about growing, and some are about harvesting. Trust that your efforts matter.",
+  "Wake up with gratitude, walk with confidence, and face the day knowing that new opportunities can appear where you least expect them.",
+  "Your life can change through one decision, one conversation, one opportunity, or one brave step. Stay open.",
+  "Do not let one difficult chapter convince you that the whole story is difficult. There are still beautiful pages ahead.",
+  "Energy follows attention. Give your attention to what you can build, what you can learn, and what you can become.",
+  "You were not created only to get through life. You were created to experience it, contribute to it, grow through it, and enjoy it.",
+  "Keep your vision bigger than your obstacles. Problems are temporary; possibility is much larger.",
+  "Today does not have to be extraordinary. Make it meaningful. One good thought, one good action, and one good decision can change the direction of your day.",
+  "There is more ahead of you than behind you. Keep your heart hopeful, your mind open, and your feet moving.",
+];
+
+// Fisher–Yates shuffle of [0..n).
+function shuffledIndices(n) {
+  const arr = Array.from({ length: n }, (_, i) => i);
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 // Rewrite a first-person "I AM" affirmation as a second-person "You are" whisper,
 // opened with the reader's name. Used by the Universe Whispers page — same rules
 // as a normal affirmation, just addressed to "you".
@@ -154,6 +190,9 @@ export default function SayAndItBecomes() {
   const [namePromptTarget, setNamePromptTarget] = useState("whispers"); // where Next on "What should I call you?" goes: "whispers" | "input"
   const [affirmationNamed, setAffirmationNamed] = useState(false); // true when this Affirmation visit came through the name prompt
   const [resultKind, setResultKind] = useState("affirmation"); // "affirmation" | "whisper" — source of the current declaration
+  const [quoteOrder, setQuoteOrder] = useState(() => shuffledIndices(POWERFUL_QUOTES.length));
+  const [quotePos, setQuotePos] = useState(0);
+  const [quotePlaying, setQuotePlaying] = useState(false);
   const [streak, setStreak] = useState(0);
   const [saidToday, setSaidToday] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -437,6 +476,41 @@ export default function SayAndItBecomes() {
       setEditText("");
     }
   }, [step]);
+
+  // Powerful Quotes slideshow: speaks the current quote (ElevenLabs, falling
+  // back to browser speech), then advances to the next quote in the shuffled
+  // order once it finishes — reshuffling after all 20 have played.
+  useEffect(() => {
+    if (step !== "quotes" || !quotePlaying) return;
+    const idx = quoteOrder[quotePos];
+    const text = POWERFUL_QUOTES[idx];
+    if (!text) return;
+    let cancelled = false;
+
+    async function run() {
+      try {
+        await playAffirmationAudio(text, QUOTES_VOICE_ID);
+      } catch (e) {
+        await new Promise((resolve) => speak(text, resolve));
+      }
+      if (cancelled) return;
+      setQuotePos((p) => {
+        const next = p + 1;
+        if (next >= quoteOrder.length) {
+          setQuoteOrder(shuffledIndices(POWERFUL_QUOTES.length));
+          return 0;
+        }
+        return next;
+      });
+    }
+    run();
+
+    return () => {
+      cancelled = true;
+      stopAffirmationAudio();
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    };
+  }, [step, quotePlaying, quotePos, quoteOrder]);
 
   // ---- Session bootstrap ----
   useEffect(() => {
@@ -807,11 +881,12 @@ export default function SayAndItBecomes() {
   // API key) to voice `text`, then play the returned MP3. Resolves when playback
   // finishes or is stopped; rejects if the endpoint is unavailable or playback
   // fails, so callers can fall back to browser speech synthesis.
-  async function playAffirmationAudio(text) {
+  async function playAffirmationAudio(text, voiceIdOverride) {
     // Only forward a voice id the server/ElevenLabs will accept — a stale value
     // (e.g. an old browser voiceURI saved to the profile) would make the request
     // fail and needlessly drop us to browser speech.
-    const voiceId = ELEVENLABS_VOICES.some((v) => v.id === selectedVoiceURI) ? selectedVoiceURI : "";
+    const voiceId =
+      voiceIdOverride || (ELEVENLABS_VOICES.some((v) => v.id === selectedVoiceURI) ? selectedVoiceURI : "");
     const res = await fetch("/api/text-to-speech", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1119,6 +1194,28 @@ export default function SayAndItBecomes() {
   function proceedFromNamePrompt() {
     if (namePromptTarget === "input") goToInputWithName();
     else goToWhispers();
+  }
+
+  function goToQuotes() {
+    setMenuOpen(false);
+    stopLessonAudio();
+    stopAffirmationAudio();
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    setQuoteOrder(shuffledIndices(POWERFUL_QUOTES.length));
+    setQuotePos(0);
+    setQuotePlaying(true);
+    setCameFrom("landing");
+    setStep("quotes");
+  }
+
+  function toggleQuotesPlayback() {
+    if (quotePlaying) {
+      stopAffirmationAudio();
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      setQuotePlaying(false);
+    } else {
+      setQuotePlaying(true);
+    }
   }
 
   function backFromSubpage() {
@@ -1639,7 +1736,7 @@ export default function SayAndItBecomes() {
       onClick={() => menuOpen && setMenuOpen(false)}
     >
       {/* Header — hidden on the landing / name screens */}
-      {step !== "landing" && step !== "whisperName" && (
+      {step !== "landing" && step !== "whisperName" && step !== "quotes" && (
       <div className="w-full max-w-md flex items-center justify-between mb-10 relative">
         <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: ACCENT }}>
           Say &amp; It Becomes
@@ -1737,12 +1834,14 @@ export default function SayAndItBecomes() {
               >
                 How you can transform your live
               </button>
-              <div
+              <button
+                type="button"
+                onClick={goToQuotes}
                 className="rounded-[1.75rem] px-4 py-6 flex items-center justify-center text-base"
                 style={{ backgroundColor: "#F6F0E6", color: "#7C6F55", fontWeight: 500 }}
               >
                 Powerful quotes
-              </div>
+              </button>
             </div>
 
             <div className="flex flex-col gap-3 w-full mt-12 items-center" style={{ fontFamily: "'Poppins', sans-serif" }}>
@@ -1825,6 +1924,63 @@ export default function SayAndItBecomes() {
               style={{ backgroundColor: "#F6F0E6", color: "#544B33", fontFamily: "'Poppins', sans-serif", fontWeight: 500, maxWidth: "9rem" }}
             >
               Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* POWERFUL QUOTES — auto-playing slideshow */}
+      {step === "quotes" && (
+        <div
+          className="fixed inset-0 overflow-y-auto flex flex-col items-center"
+          style={{ backgroundColor: "#C8B998" }}
+        >
+          <style>{`@import url('https://fonts.googleapis.com/css2?family=Parisienne&family=Caveat:wght@600;700&family=Poppins:wght@500;600;800&display=swap');`}</style>
+
+          <svg className="absolute top-0 left-0 pointer-events-none" width="210" height="250" viewBox="0 0 210 250" fill="none" aria-hidden="true">
+            <path d="M-30 235 C 30 120 90 40 205 -10" stroke="#5B5238" strokeOpacity="0.35" strokeWidth="1.4" fill="none" />
+            <path d="M64 66 C 66 79 74 87 87 89 C 74 91 66 99 64 112 C 62 99 54 91 41 89 C 54 87 62 79 64 66 Z" fill="#5B5238" fillOpacity="0.55" />
+            <path d="M128 34 C 129 42 134 47 142 48 C 134 49 129 54 128 62 C 127 54 122 49 114 48 C 122 47 127 42 128 34 Z" fill="#5B5238" fillOpacity="0.4" />
+          </svg>
+          <svg className="absolute bottom-0 right-0 pointer-events-none" width="220" height="250" viewBox="0 0 220 250" fill="none" aria-hidden="true">
+            <path d="M245 20 C 190 130 130 210 15 255" stroke="#5B5238" strokeOpacity="0.3" strokeWidth="1.4" fill="none" />
+            <path d="M158 168 C 160 181 168 189 181 191 C 168 193 160 201 158 214 C 156 201 148 193 135 191 C 148 189 156 181 158 168 Z" fill="#5B5238" fillOpacity="0.55" />
+          </svg>
+
+          <div className="w-full max-w-sm px-7 pt-6 flex justify-end">
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen((o) => !o);
+                }}
+                aria-label="Menu"
+                className="p-1"
+              >
+                <Menu size={22} style={{ color: "#544B33" }} />
+              </button>
+              {menuOpen && renderMenuPanel()}
+            </div>
+          </div>
+
+          <div className="relative w-full max-w-sm px-7 flex-1 flex flex-col items-center justify-center text-center pb-16">
+            <p className="text-xs font-semibold tracking-widest uppercase mb-6" style={{ color: "#7C6F55", fontFamily: "'Poppins', sans-serif" }}>
+              Powerful Quotes
+            </p>
+            <p
+              key={quotePos}
+              className="text-2xl leading-relaxed"
+              style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", color: "#544B33" }}
+            >
+              {POWERFUL_QUOTES[quoteOrder[quotePos]]}
+            </p>
+            <button
+              onClick={toggleQuotesPlayback}
+              className="rounded-2xl py-2.5 px-5 mt-10 flex items-center justify-center gap-2 text-lg"
+              style={{ backgroundColor: "#F6F0E6", color: "#544B33", fontFamily: "'Poppins', sans-serif", fontWeight: 500 }}
+            >
+              {quotePlaying ? <Square size={16} fill="#544B33" /> : <Volume2 size={16} />}
+              {quotePlaying ? "Pause" : "Play"}
             </button>
           </div>
         </div>
