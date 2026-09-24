@@ -1828,7 +1828,7 @@ export default function SayAndItBecomes() {
 
             <div className="flex flex-col gap-3 w-full mt-12 items-center" style={{ fontFamily: "'Poppins', sans-serif" }}>
               <button
-                onClick={goToSignIn}
+                onClick={() => goToSignIn()}
                 className="rounded-2xl py-2.5 px-3 text-lg w-full whitespace-nowrap"
                 style={{ backgroundColor: "#F6F0E6", color: "#544B33", fontWeight: 500, maxWidth: "9rem" }}
               >
