@@ -99,6 +99,21 @@ function toUniverseWhisper(text, name) {
   return t;
 }
 
+// Opens a regular (first-person "I am") affirmation with the reader's name,
+// without changing person. Used for the Daily Affirmation flow when a
+// non-member was asked "What should I call you?" first.
+function prependName(text, name) {
+  const raw = (name || "").trim();
+  if (!raw) return text;
+  const who = raw.charAt(0).toUpperCase() + raw.slice(1);
+  let t = text.replace(/^today,\s*/i, "");
+  // Don't lowercase a standalone "I" (the pronoun) — only ordinary words.
+  if (!/^I(['’ ]|$)/.test(t)) {
+    t = t.charAt(0).toLowerCase() + t.slice(1);
+  }
+  return `${who}, ${t}`;
+}
+
 function GoogleIcon({ size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
@@ -136,6 +151,8 @@ export default function SayAndItBecomes() {
   const [declaration, setDeclaration] = useState("");
   const [error, setError] = useState("");
   const [whisperName, setWhisperName] = useState("");
+  const [namePromptTarget, setNamePromptTarget] = useState("whispers"); // where Next on "What should I call you?" goes: "whispers" | "input"
+  const [affirmationNamed, setAffirmationNamed] = useState(false); // true when this Affirmation visit came through the name prompt
   const [resultKind, setResultKind] = useState("affirmation"); // "affirmation" | "whisper" — source of the current declaration
   const [streak, setStreak] = useState(0);
   const [saidToday, setSaidToday] = useState(false);
@@ -669,6 +686,7 @@ export default function SayAndItBecomes() {
       };
       await persistSession(newSession);
       await loadUserData(newSession);
+      setAffirmationNamed(false);
       setStep("input");
     } catch (e) {
       setSigninError("Something went wrong signing in.");
@@ -705,6 +723,7 @@ export default function SayAndItBecomes() {
     setSaidToday(false);
     setSelectedIds(new Set());
     setIsPaidMember(false);
+    setAffirmationNamed(false);
   }
 
   async function saveStreakRemote(newCount, lastDate) {
@@ -769,7 +788,11 @@ export default function SayAndItBecomes() {
     }
 
     let finalText = text.replace(/^["']|["']$/g, "");
-    if (asWhisper) finalText = toUniverseWhisper(finalText, whisperName.trim() || firstName);
+    if (asWhisper) {
+      finalText = toUniverseWhisper(finalText, whisperName.trim() || firstName);
+    } else if (affirmationNamed) {
+      finalText = prependName(finalText, whisperName.trim() || firstName);
+    }
     setResultKind(asWhisper ? "whisper" : "affirmation");
     setDeclaration(finalText);
     setStep("declaration");
@@ -1043,6 +1066,21 @@ export default function SayAndItBecomes() {
 
   function goToWhisperName() {
     setWhisperName("");
+    setNamePromptTarget("whispers");
+    setBelief("");
+    setDeclaration("");
+    setError("");
+    setMicError("");
+    setIsEditing(false);
+    setCameFrom("landing");
+    setStep("whisperName");
+  }
+
+  // Non-members get asked "What should I call you?" before the Daily
+  // Affirmation page too, so the resulting affirmation can open with their name.
+  function goToAffirmationWithName() {
+    setWhisperName("");
+    setNamePromptTarget("input");
     setBelief("");
     setDeclaration("");
     setError("");
@@ -1065,6 +1103,24 @@ export default function SayAndItBecomes() {
     setStep("whispers");
   }
 
+  // Next on the name prompt, when it was opened for the Daily Affirmation flow.
+  function goToInputWithName() {
+    const wn = whisperName.trim();
+    if (wn) setProfileName(wn.charAt(0).toUpperCase() + wn.slice(1));
+    setAffirmationNamed(true);
+    setBelief("");
+    setDeclaration("");
+    setError("");
+    setMicError("");
+    setIsEditing(false);
+    setStep("input");
+  }
+
+  function proceedFromNamePrompt() {
+    if (namePromptTarget === "input") goToInputWithName();
+    else goToWhispers();
+  }
+
   function backFromSubpage() {
     stopSequence();
     setSelectedIds(new Set());
@@ -1074,6 +1130,7 @@ export default function SayAndItBecomes() {
 
   function startOver() {
     stopLessonAudio();
+    setAffirmationNamed(false);
     setStep("input");
     setBelief("");
     setDeclaration("");
@@ -1653,7 +1710,7 @@ export default function SayAndItBecomes() {
             <div className="grid grid-cols-2 gap-4 w-full" style={{ fontFamily: "'Poppins', sans-serif" }}>
               <button
                 type="button"
-                onClick={startOver}
+                onClick={() => (isPaidMember ? startOver() : goToAffirmationWithName())}
                 className="rounded-[1.75rem] px-4 py-8 flex flex-col items-center justify-center"
                 style={{ backgroundColor: "#F6F0E6" }}
               >
@@ -1754,7 +1811,7 @@ export default function SayAndItBecomes() {
               value={whisperName}
               onChange={(e) => setWhisperName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && whisperName.trim()) goToWhispers();
+                if (e.key === "Enter" && whisperName.trim()) proceedFromNamePrompt();
               }}
               placeholder="Your name"
               autoFocus
@@ -1762,7 +1819,7 @@ export default function SayAndItBecomes() {
               style={{ backgroundColor: "#F6F0E6", color: "#544B33", fontFamily: "'Poppins', sans-serif", maxWidth: "16rem" }}
             />
             <button
-              onClick={goToWhispers}
+              onClick={proceedFromNamePrompt}
               disabled={!whisperName.trim()}
               className="rounded-2xl py-2.5 px-3 text-lg w-full whitespace-nowrap mt-6 disabled:opacity-40"
               style={{ backgroundColor: "#F6F0E6", color: "#544B33", fontFamily: "'Poppins', sans-serif", fontWeight: 500, maxWidth: "9rem" }}
