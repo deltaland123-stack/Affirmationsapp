@@ -1220,6 +1220,8 @@ export default function SayAndItBecomes() {
   }
 
   function proceedFromNamePrompt() {
+    // Non-members get a fresh gallery view once they (re)introduce themselves.
+    if (!isPaidMember) setGallery([]);
     if (namePromptTarget === "input") goToInputWithName();
     else goToWhispers();
   }
