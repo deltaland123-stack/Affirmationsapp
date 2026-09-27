@@ -117,10 +117,13 @@ export default async function handler(req, res) {
     // Same shape requestAffirmation() already expects from this endpoint.
     return sendJson(res, 200, { content: [{ type: "text", text }] });
   } catch (err) {
-    // Don't leak the API key or internal details to the client.
+    // The SDK's error message describes what Anthropic rejected about the
+    // request (never the API key itself, which is sent as a header and never
+    // echoed back) - safe to surface while we're diagnosing the 400 above.
     const status = Number(err && err.status);
     const safeStatus = status >= 400 && status < 600 ? status : 502;
-    console.error("[generate] Claude request failed:", err && (err.message || err));
-    return sendJson(res, safeStatus, { error: "Could not generate an affirmation." });
+    const detail = (err && (err.error?.error?.message || err.message)) || String(err);
+    console.error("[generate] Claude request failed:", detail);
+    return sendJson(res, safeStatus, { error: "Could not generate an affirmation.", detail });
   }
 }
