@@ -7,7 +7,14 @@ import { pathToFileURL } from 'node:url'
 // Server-only env vars the /api functions need. These are NOT exposed to client
 // code (Vite only bundles VITE_* vars); they are just made available to the
 // dev-time middleware below so `npm run dev` can run the endpoints locally.
-const SERVER_ENV_KEYS = ['ELEVENLABS_API_KEY', 'ELEVENLABS_VOICE_ID', 'ELEVENLABS_MODEL_ID', 'ANTHROPIC_API_KEY']
+const SERVER_ENV_KEYS = [
+  'ELEVENLABS_API_KEY',
+  'ELEVENLABS_VOICE_ID',
+  'ELEVENLABS_MODEL_ID',
+  'ANTHROPIC_API_KEY',
+  'OPENAI_API_KEY',
+  'OPENAI_TTS_MODEL',
+]
 
 // Runs files in /api as Node request handlers during `vite dev` / `vite preview`,
 // mirroring how Vercel / Netlify execute them in production.

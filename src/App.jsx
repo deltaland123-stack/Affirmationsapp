@@ -901,9 +901,38 @@ export default function SayAndItBecomes() {
     setStep("declaration");
   }
 
-  // Stop any in-progress ElevenLabs audio playback.
+  // Stop any in-progress server-narrated (ElevenLabs or OpenAI) audio playback.
   function stopAffirmationAudio() {
     if (elevenAudioRef.current) elevenAudioRef.current.stop();
+  }
+
+  // Play a returned audio Blob. Resolves when playback finishes or is
+  // stopped (via stopAffirmationAudio); rejects on a playback error. Shared
+  // by every server-narration path so stop/cancel behaves the same for all
+  // of them.
+  function playAudioBlob(blob) {
+    if (!blob || !blob.size) throw new Error("Empty audio response from server");
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    return new Promise((resolve, reject) => {
+      const finish = (cb, arg) => {
+        audio.onended = null;
+        audio.onerror = null;
+        URL.revokeObjectURL(url);
+        if (elevenAudioRef.current === entry) elevenAudioRef.current = null;
+        cb(arg);
+      };
+      const entry = {
+        stop: () => {
+          audio.pause();
+          finish(resolve, "stopped");
+        },
+      };
+      elevenAudioRef.current = entry;
+      audio.onended = () => finish(resolve, "ended");
+      audio.onerror = () => finish(reject, new Error("Audio playback failed"));
+      audio.play().catch((e) => finish(reject, e));
+    });
   }
 
   // Ask the secure server endpoint (which talks to ElevenLabs with the secret
@@ -929,30 +958,28 @@ export default function SayAndItBecomes() {
       } catch (e) {}
       throw new Error(detail || `Text-to-speech request failed (${res.status})`);
     }
-    const blob = await res.blob();
-    if (!blob.size) throw new Error("Empty audio response from server");
+    return playAudioBlob(await res.blob());
+  }
 
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    return new Promise((resolve, reject) => {
-      const finish = (cb, arg) => {
-        audio.onended = null;
-        audio.onerror = null;
-        URL.revokeObjectURL(url);
-        if (elevenAudioRef.current === entry) elevenAudioRef.current = null;
-        cb(arg);
-      };
-      const entry = {
-        stop: () => {
-          audio.pause();
-          finish(resolve, "stopped");
-        },
-      };
-      elevenAudioRef.current = entry;
-      audio.onended = () => finish(resolve, "ended");
-      audio.onerror = () => finish(reject, new Error("Audio playback failed"));
-      audio.play().catch((e) => finish(reject, e));
+  // Paid-membership perk: ask the secure server endpoint (which talks to
+  // OpenAI with the secret API key) to voice `text`, then play the returned
+  // MP3. Resolves when playback finishes or is stopped; rejects if the
+  // endpoint is unavailable or playback fails, so callers can fall back to
+  // browser speech synthesis.
+  async function playPremiumAudio(text) {
+    const res = await fetch("/api/openai-tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
     });
+    if (!res.ok) {
+      let detail = "";
+      try {
+        detail = (await res.json())?.error || "";
+      } catch (e) {}
+      throw new Error(detail || `Premium narration request failed (${res.status})`);
+    }
+    return playAudioBlob(await res.blob());
   }
 
   function speak(text, onEnd) {
@@ -1014,17 +1041,19 @@ export default function SayAndItBecomes() {
     window.speechSynthesis.cancel();
     setSpeaking(true);
 
-    // Prefer natural ElevenLabs audio from the server; fall back to the
-    // browser's built-in speech synthesis if it's unavailable.
-    try {
-      await playAffirmationAudio(declaration);
-      setSpeaking(false);
-      return;
-    } catch (e) {
-      console.warn("ElevenLabs audio unavailable, using browser speech:", e);
-      if (speechCancelRef.current) {
+    // Paid members get natural OpenAI narration; everyone else, and any
+    // member whose request fails, gets the browser's built-in speech.
+    if (isPaidMember) {
+      try {
+        await playPremiumAudio(declaration);
         setSpeaking(false);
         return;
+      } catch (e) {
+        console.warn("Premium narration unavailable, using browser speech:", e);
+        if (speechCancelRef.current) {
+          setSpeaking(false);
+          return;
+        }
       }
     }
 
