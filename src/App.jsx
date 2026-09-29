@@ -44,6 +44,12 @@ const INK = "#14181F";
 const MUTED = "#8A8F98";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Disconnected: the app no longer calls the ElevenLabs endpoint (see
+// playAffirmationAudio below). Every caller already falls back to the
+// browser's built-in speech synthesis, so this is the single switch to
+// flip back to true to reconnect it later.
+const ELEVENLABS_ENABLED = false;
+
 // ElevenLabs premade voices offered in Setup — 4 male, 4 female. The `id` is the
 // ElevenLabs voice_id sent to /api/text-to-speech. All verified available on the
 // project's plan.
@@ -905,6 +911,7 @@ export default function SayAndItBecomes() {
   // finishes or is stopped; rejects if the endpoint is unavailable or playback
   // fails, so callers can fall back to browser speech synthesis.
   async function playAffirmationAudio(text, voiceIdOverride) {
+    if (!ELEVENLABS_ENABLED) throw new Error("ElevenLabs is currently disconnected");
     // Only forward a voice id the server/ElevenLabs will accept — a stale value
     // (e.g. an old browser voiceURI saved to the profile) would make the request
     // fail and needlessly drop us to browser speech.
